@@ -231,4 +231,3 @@ def get_all_patient_ids():
 def get_patient_names():
     """Get mapping of patient IDs to names"""
     return {pid: data["name"] for pid, data in PATIENT_DATA.items()}
-

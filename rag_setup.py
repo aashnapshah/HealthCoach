@@ -1,3 +1,7 @@
+"""
+RAG setup for patient data
+"""
+
 import os
 from langchain_community.llms import Ollama
 from langchain_community.embeddings import OllamaEmbeddings
@@ -9,6 +13,15 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import ChatPromptTemplate
 from ehr_data import PATIENT_DATA, get_patient_data, get_all_patient_ids
 
+# LLM Configuration (honors environment variables)
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1")
+OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
+OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama2")
+CHUNK_SIZE = 512
+CHUNK_OVERLAP = 128
+RETRIEVAL_K = 4
+
 # Global storage for patient-specific vector stores and chains
 patient_vector_stores = {}
 patient_retrievers = {}
@@ -16,14 +29,17 @@ patient_retrievers = {}
 def initialize_patient_data():
     """Initialize vector stores for all patients"""
     
-    # Initialize LLM and embeddings
+    # Initialize embeddings using the centralized config
     embed_model = OllamaEmbeddings(
-        model="llama3:8b",
-        base_url='http://127.0.0.1:11434'
+        model=OLLAMA_MODEL,
+        base_url=OLLAMA_BASE_URL
     )
     
-    # Text splitter
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=128)
+    # Text splitter using centralized config
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_SIZE, 
+        chunk_overlap=CHUNK_OVERLAP
+    )
     
     # Create vector store for each patient
     for patient_id, patient_info in PATIENT_DATA.items():
@@ -48,8 +64,12 @@ def setup_rag_chain(patient_id: str):
     if patient_id.upper() not in patient_retrievers:
         raise ValueError(f"Patient ID {patient_id} not found. Valid IDs: {', '.join(get_all_patient_ids())}")
     
-    # Initialize LLM
-    llm = Ollama(model="llama3:8b", base_url="http://127.0.0.1:11434")
+    # Initialize LLM using centralized config
+    llm = Ollama(
+        model=OLLAMA_MODEL,
+        base_url=OLLAMA_BASE_URL,
+        timeout=30  # 30 second timeout
+    )
     
     # Get retriever for this patient
     retriever = patient_retrievers[patient_id.upper()]
@@ -98,6 +118,9 @@ def setup_rag_chain(patient_id: str):
 
 def get_answer(chain, question: str) -> str:
     """Get an answer from the RAG chain"""
-    response = chain.invoke({"input": question})
-    return response['answer']
-
+    try:
+        response = chain.invoke({"input": question})
+        return response['answer']
+    except Exception as e:
+        print(f"Error getting answer from RAG chain: {str(e)}")
+        return "I'm sorry, I'm having trouble accessing the medical records right now. Please try again in a moment."

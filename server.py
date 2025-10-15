@@ -4,9 +4,15 @@ Handles the web interface and chat flow
 """
 
 import os
+import requests
 from typing import Dict
 from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Ollama configuration
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "127.0.0.1")
+OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
+OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
 
 # App and static config
 STATIC_DIR = "/n/data1/hms/dbmi/manrai/aashna/HealthCoachV2/static"
@@ -16,6 +22,23 @@ app.wsgi_app = ProxyFix(app.wsgi_app)
 # Import domain modules
 from ehr_data import PATIENT_DATA, get_patient_data, get_patient_names
 from chat_manager import ChatManager
+
+def check_ollama_status():
+    """Check if Ollama is running and responding"""
+    try:
+        response = requests.get(f"{OLLAMA_BASE_URL}/api/version", timeout=5)
+        if response.status_code == 200:
+            print(f"✓ Ollama is running (version: {response.json().get('version')})")
+            return True
+        else:
+            print(f"❌ Ollama returned status code: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to connect to Ollama: {e}")
+        print(f"  • Tried connecting to: {OLLAMA_BASE_URL}")
+        print("  • Make sure Ollama is running and the host/port are correct")
+        print("  • Set OLLAMA_HOST and OLLAMA_PORT environment variables if needed")
+        return False
 
 # Simple in-memory sessions keyed by patient_id (demo)
 CHAT_SESSIONS: Dict[str, ChatManager] = {}
@@ -183,6 +206,77 @@ def submit_answer():
         
     return jsonify(response)
 
+@app.route("/generate_final_summary", methods=["POST"])
+def generate_final_summary():
+    try:
+        data = request.get_json(force=True) or {}
+        patient_id = str(data.get("patient_id", "")).upper()
+        
+        if not patient_id:
+            return jsonify({"error": "Missing patient_id"}), 400
+            
+        # Get the chat manager for this patient
+        manager = CHAT_SESSIONS.get(patient_id)
+        if not manager:
+            # Try to recreate the manager from stored data
+            patient = get_patient_data(patient_id)
+            if not patient:
+                return jsonify({"error": "Patient not found"}), 400
+            manager = ChatManager(patient_id, patient, start_at_visit_prep=True)
+            CHAT_SESSIONS[patient_id] = manager
+            
+        # Generate the final summary
+        _, summary = manager.get_next_question()
+        
+        return jsonify({
+            "summary": summary or "No summary available."
+        })
+    except Exception as e:
+        print(f"ERROR in generate_final_summary: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route("/save_comment", methods=["POST"])
+def save_comment():
+    try:
+        data = request.get_json(force=True) or {}
+        patient_id = str(data.get("patient_id", "")).upper()
+        comment = data.get("comment")
+        
+        if not patient_id or not comment:
+            return jsonify({"error": "Missing patient_id or comment"}), 400
+            
+        # Get the chat manager for this patient
+        manager = CHAT_SESSIONS.get(patient_id)
+        if not manager:
+            return jsonify({"error": "Session not found"}), 400
+            
+        # Save the comment to the manager
+        manager.save_comment(comment)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        print(f"ERROR in save_comment: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Internal server error"}), 500
+
 if __name__ == "__main__":
+    print("\n=== Starting HealthCoach Server ===")
+    print(f"• Ollama URL: {OLLAMA_BASE_URL}")
+    
+    # Check Ollama status
+    if not check_ollama_status():
+        print("\n❌ Failed to connect to Ollama. Server will start but LLM features may not work.")
+        print("  To fix this:")
+        print("  1. Make sure Ollama is running")
+        print("  2. Check if you need to set OLLAMA_HOST/OLLAMA_PORT environment variables")
+        print("  3. Verify network connectivity to Ollama server")
+    else:
+        print("\n✓ Successfully connected to Ollama")
+    
+    # Start server
     port = int(os.environ.get("PORT", "8000"))
+    print(f"\n🚀 Starting server on port {port}")
     app.run(host="0.0.0.0", port=port, debug=True)

@@ -97,7 +97,7 @@ def get_next_question(session: VisitSession) -> Optional[Dict]:
         questions = session.get_visit_questions()
         
         if session.current_index < len(questions):
-            question = questions[session.current_index - 1]
+            question = questions[session.current_index]
             session.current_index += 1
             return {
                 **question,

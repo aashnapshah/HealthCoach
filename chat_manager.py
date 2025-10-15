@@ -104,3 +104,8 @@ VISIT PREPARATION
             return self.get_next_question()
         
         return None, None
+        
+    def save_comment(self, comment: str):
+        """Save a comment for the final summary"""
+        if self.stage == ChatStage.COMPLETE:
+            self.visit_session.comments = comment
