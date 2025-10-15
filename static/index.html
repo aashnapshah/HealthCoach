@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Minimal styles for role + layout, works alongside styles.css */
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .app { max-width: 1024px; margin: 0 auto; padding: 16px; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; opacity: 0.8; }
+    .hide { display: none !important; }
+
+    .back-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .back-btn:hover { background: #f7f7f7; }
+
+    .role-selection { display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 24px 0; }
+    .role-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+    .role-btn { padding: 10px 16px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .role-btn:hover { background: #f5f5f5; }
+
+    .patient-selection h2 { margin: 16px 0; }
+    .patient-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .patient-card { display: flex; gap: 12px; padding: 12px; border: 1px solid #e5e5e5; border-radius: 12px; background: #fff; cursor: pointer; }
+    .patient-card:hover { background: #fbfbfb; }
+    .patient-avatar { width: 40px; height: 40px; border-radius: 50%; background: #eef; color: #335; display: grid; place-items: center; font-weight: 700; }
+    .patient-info h3 { margin: 0 0 4px 0; font-size: 16px; }
+    .patient-info p { margin: 2px 0; font-size: 13px; opacity: 0.8; }
+
+    #stream { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; max-height: calc(100vh - 180px); overflow-y: auto; padding-bottom: 24px; }
+    .card, .section-card, .summary-card { border: 1px solid #e5e5e5; border-radius: 12px; background: #fff; padding: 12px; }
+    .section-header { border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 8px; }
+    .qrow { display: flex; gap: 12px; align-items: flex-start; }
+    .qbubble { background: #f0f0f0; border-radius: 10px; padding: 10px; position: relative; max-width: 70%; }
+    .avatar-label { display: flex; align-items: center; gap: 8px; }
+    .avatar { background: #335; color: #fff; border-radius: 50%; width: 32px; height: 32px; display: grid; place-items: center; font-weight: bold; }
+    .opts, .response-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+    .opt, .yes-no-btn, .response-btn, .text-submit-btn, .action-btn, .scale-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .opt:hover, .yes-no-btn:hover, .response-btn:hover, .scale-btn:hover, .text-submit-btn:hover { background: #f5f5f5; }
+    .opt.sel, .yes-no-btn.selected, .response-btn.selected, .scale-btn.selected { border-color: #5b8def; background: #eef3ff; }
+    .text-input { width: 100%; resize: vertical; padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
+    .text-input-container { display: grid; gap: 8px; }
+    .summary-actions { display: flex; gap: 8px; }
+    .action-btn.primary { background: #0b5; color: #fff; border-color: #0a4; }
+    .action-btn.primary:hover { background: #0a4; }
+    .minimal-loading { display: inline-flex; align-items: center; gap: 8px; opacity: 0.8; }
+    .minimal-spinner { width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #555; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .typing { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+    .typing .dot { width: 6px; height: 6px; border-radius: 50%; background: #bbb; animation: bounce 1.2s infinite ease-in-out; }
+    .typing .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+    .fadein { animation: fadein 180ms ease-in; }
+    @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .completion-card {
+      border-top: 1px solid #e5e5e5;
+      padding: 24px 0;
+      margin: 24px 0;
+      text-align: center;
+    }
+    .completion-title {
+      font-size: 18px;
+      color: #666;
+      margin: 0 0 20px 0;
+    }
+    .completion-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-small">👨‍⚕️</div>
+        <div>
+          <div class="title">HealthCoach</div>
+          <div class="subtitle" id="header-subtitle">Who are you?</div>
+        </div>
+      </div>
+      <div class="progress-container" id="progress-container">
+        <div class="progress-label" id="progress-label"></div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <button class="back-btn hide" id="back-btn" onclick="goBackToPatientSelection()">← Back</button>
+    </div>
+
+    <!-- Patient Selection -->
+    <div id="patient-selection" class="patient-selection hide">
+      <h2>Select a Patient</h2>
+      <div id="patient-grid" class="patient-grid"></div>
+    </div>
+
+    <!-- Intake Stream -->
+    <main id="stream" class="stream hide" aria-live="polite"></main>
+
+  </div>
+
+  <script>
+  // Application state
+  const state = {
+    role: null,
+    selectedPatientId: null,
+    currentQuestionKey: null,
+    questionsAnswered: 0,
+    answers: {},
+    currentSection: null,
+    questions: {},  // Store all questions for review
+    editMode: false,
+    isComplete: false  // Track completion state
+  };
+
+  // DOM elements
+  const els = {
+    roleSelection: document.getElementById('role-selection'),
+    patientSelection: document.getElementById('patient-selection'),
+    patientGrid: document.getElementById('patient-grid'),
+    stream: document.getElementById('stream'),
+    headerSubtitle: document.getElementById('header-subtitle'),
+    backBtn: document.getElementById('back-btn'),
+    reviewPage: document.getElementById('review-page'),
+    answersReview: document.getElementById('answers-review'),
+    additionalFeedback: document.getElementById('additional-feedback')
+  };
+
+  // API helpers
+  const api = {
+    async getJSON(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('Request failed: ' + res.status);
+      return res.json();
+    },
+    patients() { return this.getJSON('/patients'); },
+    startIntake(patientId) {
+      return this.getJSON('/start_intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId })
+      });
+    },
+    submit(patientId, answer, questionKey) {
+      return this.getJSON('/submit_answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId, answer, question_key: questionKey })
+      });
+    }
+  };
+
+  // Init
+  document.addEventListener('DOMContentLoaded', init);
+  async function init() {
+    // Check if patient_id is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patient_id');
+    
+    if (patientId) {
+      // Skip role/patient selection, go directly to intake
+      els.roleSelection.classList.add('hide');
+      els.patientSelection.classList.add('hide');
+      els.stream.classList.remove('hide');
+      els.backBtn.classList.remove('hide');
+      
+      // Fetch patient info and start intake
+      try {
+        const patients = await api.patients();
+        const patient = patients.find(p => p.id === patientId);
+        if (patient) {
+          els.headerSubtitle.textContent = `Intake Form - ${patient.name}`;
+          state.selectedPatientId = patientId;
+          showLoadingIndicator();
+          const data = await api.startIntake(patientId);
+          hideLoadingIndicator();
+          state.questionsAnswered = 0;
+          state.answers = {};
+          displayQuestion(data);
+        } else {
+          alert('Patient not found. Redirecting...');
+          window.location.href = '/';
+        }
+      } catch (e) {
+        console.error('Error starting intake:', e);
+        alert('Error starting intake. Redirecting...');
+        window.location.href = '/';
+      }
+    } else {
+      // Show patient selection directly
+      els.headerSubtitle.textContent = 'Select a Patient';
+      els.patientSelection.classList.remove('hide');
+      els.stream.classList.add('hide');
+      els.backBtn.classList.add('hide');
+      loadPatients();
+    }
+  }
+
+  // Role selection
+  function selectRole(role) {
+    state.role = role;
+    els.roleSelection.classList.add('hide');
+    els.patientSelection.classList.remove('hide');
+    els.headerSubtitle.textContent = role === 'clinician' ? 'Select a patient to review' : 'Select a patient to begin';
+    loadPatients();
+  }
+
+  // Patients
+  async function loadPatients() {
+    try {
+      const patients = await api.patients();
+      els.patientGrid.innerHTML = patients.map(p => `
+        <div class="patient-card" data-id="${escapeAttr(p.id)}" data-name="${escapeAttr(p.name)}">
+          <div class="patient-avatar">${escapeHTML(p.name?.charAt(0)?.toUpperCase() || '?')}</div>
+          <div class="patient-info">
+            <h3>${escapeHTML(p.name)}</h3>
+            <p>Patient ID: ${escapeHTML(p.id)}</p>
+            <p>Age: ${escapeHTML(p.age || '')} | Gender: ${escapeHTML(p.gender || '')}</p>
+            ${p.dob ? `<p>DOB: ${escapeHTML(p.dob)}</p>` : ''}
+          </div>
+        </div>
+      `).join('');
+      els.patientGrid.addEventListener('click', onPatientClick);
+    } catch (e) {
+      console.error('Error loading patients:', e);
+      alert('Error loading patients. Please try again.');
+    }
+  }
+
+  function onPatientClick(e) {
+    const card = e.target.closest('.patient-card');
+    if (!card) return;
+    selectPatient(card.dataset.id, card.dataset.name);
+  }
+
+  async function selectPatient(patientId, patientName) {
+    try {
+      state.selectedPatientId = patientId;
+      els.patientSelection.classList.add('hide');
+      els.stream.classList.remove('hide');
+      els.backBtn.classList.remove('hide');
+      els.headerSubtitle.textContent = `Intake Form - ${patientName}`;
+      els.stream.innerHTML = '';
+      showLoadingIndicator();
+      const data = await api.startIntake(patientId);
+      hideLoadingIndicator();
+      state.questionsAnswered = 0;
+      state.answers = {};
+      displayQuestion(data);
+    } catch (e) {
+      console.error('Error starting intake:', e);
+      hideLoadingIndicator();
+      alert('Error starting intake. Try again.');
+    }
+  }
+
+  // Back
+  function goBackToPatientSelection() {
+    window.location.href = '/';
+  }
+
+  // Question rendering
+  function displayQuestion(data) {
+    if (!data) return;
+
+    hideLoadingIndicator();
+
+    // Handle completion
+    if (data.type === 'complete') {
+      // Store summary for later use
+      state.currentSummary = data.summary;
+      
+      // Show just the next button, directly in the last question's response area
+      const lastQuestion = els.stream.lastElementChild;
+      if (lastQuestion) {
+        const responseContainer = lastQuestion.querySelector('.response-container');
+        if (responseContainer) {
+          responseContainer.innerHTML = `
+            <div class="summary-actions" style="display: flex; justify-content: flex-end;">
+              <button class="action-btn primary" onclick="saveAndNext()">Save & Next →</button>
+            </div>
+          `;
+        }
+      }
+      return;
+    }
+
+    state.currentQuestionKey = data.question_key || `q_${state.questionsAnswered}`;
+    state.questions[state.currentQuestionKey] = data;  // Store question data
+    state.questionsAnswered++;
+
+    // Don't create a question card for completion messages
+    if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+      const completionCard = document.createElement('div');
+      completionCard.className = 'card fadein';
+      completionCard.dataset.questionKey = state.currentQuestionKey;
+      completionCard.innerHTML = buildResponseOptions(data, state.currentQuestionKey);
+      els.stream.appendChild(completionCard);
+      return;
+    }
+
+    // Create question card for normal questions
+    const questionCard = createQuestionCard(data, state.currentQuestionKey);
+    
+    // Only create section header if it's the first question
+    if (state.questionsAnswered === 1) {
+      const sectionCard = document.createElement('div');
+      sectionCard.className = 'section-card fadein';
+      sectionCard.dataset.section = 'verification';
+
+      const sectionHeader = document.createElement('div');
+      sectionHeader.className = 'section-header verification';
+      sectionHeader.innerHTML = '<h2>📋 Part 1: Medical Record Review</h2>';
+
+      sectionCard.appendChild(sectionHeader);
+      els.stream.appendChild(sectionCard);
+    }
+    
+    // Add question card directly to stream
+    els.stream.appendChild(questionCard);
+    scrollToBottom();
+  }
+
+  // Fully refined version of createQuestionCard with careful crafting
+  function createQuestionCard(data, questionKey) {
+    const item = document.createElement('div');
+    item.className = 'card fadein';
+    item.dataset.questionKey = questionKey;
+
+    item.innerHTML = `
+      <div class="qrow">
+        <div class="avatar-label">
+          <div class="avatar">HC</div>
+          <div class="qbubble">
+            ${escapeHTML(data.question || 'Question')}
+            <span class="typing" id="loading-${questionKey}" style="display:none">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="response-options">
+        <div class="response-container">
+          ${buildResponseOptions(data, questionKey)}
+        </div>
+      </div>
+    `;
+    return item;
+  }
+
+  function buildResponseOptions(data, questionKey) {
+    // Don't show response options for completion messages
+      if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+        return `
+          <div class="completion-card">
+            <div class="completion-title">End of Medical Record Review</div>
+            <div class="completion-buttons">
+              <button class="action-btn secondary" onclick="saveAnswers()">Save</button>
+              <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue →</button>
+            </div>
+          </div>
+        `;
+      }
+
+    switch (data.question_type) {
+      case 'yes_no':
+        return `
+          <div class="opts">
+            <button class="yes-no-btn yes-btn" onclick="selectAnswer('${questionKey}', 'yes', this)">✓ Yes</button>
+            <button class="yes-no-btn no-btn" onclick="selectAnswer('${questionKey}', 'no', this)">✗ No</button>
+            <button class="yes-no-btn not-sure-btn" onclick="selectAnswer('${questionKey}', 'not_sure', this)">? Not Sure</button>
+          </div>
+        `;
+      case 'multiple_choice':
+        const isMultiselect = data.multiselect === true || data.allow_multiple === true;
+        return `
+          <div class="opts ${isMultiselect ? 'multiselect' : ''}">
+            ${(data.options || []).map(option => `
+              <button class="opt ${isMultiselect ? 'multiselect' : ''}" 
+                onclick="selectAnswer('${questionKey}', '${escapeAttr(option)}', this, ${isMultiselect})"
+                data-value="${escapeAttr(option)}">${escapeHTML(option)}</button>
+            `).join('')}
+          </div>
+          ${isMultiselect ? `
+            <div class="submit-container">
+              <button class="action-btn primary" onclick="submitMultiselect('${questionKey}')">Submit Selection</button>
+            </div>
+          ` : ''}
+        `;
+      case 'scale_1_10':
+        return `
+          <div class="scale-container">
+            <div class="scale-labels">
+              <span class="scale-label-left">${data.scale_labels?.['1'] || '1'}</span>
+              <span class="scale-label-right">${data.scale_labels?.['10'] || '10'}</span>
+            </div>
+            <div class="opts">
+              ${Array.from({length:10},(_,i)=>i+1).map(n=>`
+                <button class="scale-btn" onclick="selectAnswer('${questionKey}', '${n}', this)">${n}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      case 'text':
+        return `
+          <div class="text-input-container" style="position: relative;">
+            <input type="text" class="text-input" 
+              placeholder="${escapeAttr(data.placeholder || 'Type your answer...')}"
+              onkeypress="if(event.key === 'Enter') { event.preventDefault(); submitTextAnswer('${questionKey}', this.nextElementSibling); }"
+              autofocus>
+            <button class="text-submit-btn" onclick="submitTextAnswer('${questionKey}', this)" title="Send">➤</button>
+          </div>
+        `;
+      default:
+        return `
+          <div class="opts">
+            <button class="opt" onclick="selectAnswer('${questionKey}', 'continue', this)">Continue</button>
+          </div>
+        `;
+    }
+  }
+
+  // Answer handlers
+  function selectAnswer(questionKey, answer, buttonEl, isMultiselect = false) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    
+    if (isMultiselect) {
+      buttonEl.classList.toggle('sel');
+    } else {
+      container.querySelectorAll('.opt, .yes-no-btn, .scale-btn').forEach(btn => btn.classList.remove('sel', 'selected'));
+      if (buttonEl) buttonEl.classList.add('sel', 'selected');
+      submitAnswerToBackend(questionKey, answer);
+    }
+  }
+
+  function submitMultiselect(questionKey) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    
+    const selectedOptions = Array.from(container.querySelectorAll('.opt.multiselect.sel'))
+      .map(btn => btn.dataset.value);
+    
+    if (selectedOptions.length === 0) {
+      alert('Please select at least one option');
+      return;
+    }
+    
+    submitAnswerToBackend(questionKey, selectedOptions);
+  }
+
+  function submitTextAnswer(questionKey, buttonEl) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    const textInput = container.querySelector('.text-input');
+    if (!textInput) return;
+    const answer = textInput.value.trim();
+    if (!answer) {
+      textInput.focus();
+      return;
+    }
+    buttonEl?.classList.add('selected');
+    textInput.disabled = true;
+    buttonEl.disabled = true;
+    submitAnswerToBackend(questionKey, answer);
+  }
+
+  async function submitAnswerToBackend(questionKey, answer) {
+    // Don't submit if we're already in completion state
+    if (state.isComplete) return;
+
+    state.answers[questionKey] = answer;
+    showLoadingIndicator(questionKey);
+    try {
+      const data = await api.submit(state.selectedPatientId, answer, questionKey);
+      hideLoadingIndicator(questionKey);
+      const currentCard = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+      currentCard?.classList.add('answered');
+      
+      // Check if this is a completion message
+      if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+        state.isComplete = true;
+        // Remove any existing completion messages
+        document.querySelectorAll('[data-question-key]').forEach(card => {
+          if (card.textContent.includes('Medical record review complete!')) {
+            card.remove();
+          }
+        });
+      }
+      
+      if (data) displayQuestion(data);
+    } catch (e) {
+      console.error('Error submitting answer:', e);
+      hideLoadingIndicator(questionKey);
+      alert('Error submitting answer. Try again.');
+    }
+  }
+
+
+  // Summary
+  function displaySummary(summary) {
+    const card = document.createElement('div');
+    card.className = 'summary-card fadein';
+    card.innerHTML = `
+      <h3>📋 Medical Record Review Complete!</h3>
+      <div class="summary-actions">
+        <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+      </div>
+    `;
+    els.stream.appendChild(card);
+    scrollToBottom();
+  }
+
+  // Loading indicator
+  function showLoadingIndicator(questionKey) {
+    if (questionKey) {
+      const el = document.getElementById('loading-' + questionKey);
+      if (el) el.style.display = 'inline-flex';
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'minimal-loading';
+    el.id = 'loading-indicator';
+    el.innerHTML = `<div class="minimal-spinner"></div><span>Processing...</span>`;
+    els.stream.appendChild(el);
+    scrollToBottom();
+  }
+  function hideLoadingIndicator(questionKey) {
+    if (questionKey) {
+      const el = document.getElementById('loading-' + questionKey);
+      if (el) el.style.display = 'none';
+      return;
+    }
+    document.getElementById('loading-indicator')?.remove();
+  }
+
+  // Download summary
+  function downloadSummary() {
+    const text = document.querySelector('.summary-content pre')?.textContent;
+    if (!text) return;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `intake_summary_${state.selectedPatientId}_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function saveAnswers() {
+    const button = document.querySelector('.action-btn.secondary');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+    
+    try {
+      // Call API to save answers
+      await api.submit(state.selectedPatientId, 'save', 'save_answers');
+      
+      if (button) {
+        button.textContent = 'Saved ✓';
+        setTimeout(() => {
+          button.textContent = 'Save';
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (e) {
+      console.error('Error saving answers:', e);
+      if (button) {
+        button.textContent = 'Save';
+        button.disabled = false;
+      }
+      alert('Error saving answers. Please try again.');
+    }
+  }
+
+  async function saveAndNext() {
+    const button = document.querySelector('.action-btn.primary');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+
+    try {
+      // Save answers first
+      await api.submit(state.selectedPatientId, 'save', 'save_answers');
+      
+      // Replace the Save & Next button with Continue button
+      const lastQuestion = els.stream.lastElementChild;
+      if (lastQuestion) {
+        const responseContainer = lastQuestion.querySelector('.response-container');
+        if (responseContainer) {
+          responseContainer.innerHTML = `
+            <div class="summary-actions" style="display: flex; justify-content: flex-end;">
+              <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+            </div>
+          `;
+        }
+      }
+    } catch (e) {
+      console.error('Error saving answers:', e);
+      if (button) {
+        button.textContent = 'Save & Next →';
+        button.disabled = false;
+      }
+      alert('Error saving answers. Please try again.');
+    }
+  }
+
+  function proceedToVisitPrep() {
+    window.location.href = `/visit_prep.html?patient_id=${state.selectedPatientId}`;
+  }
+
+  // Utils
+  function scrollToBottom() { setTimeout(() => { els.stream.scrollTop = els.stream.scrollHeight; }, 50); }
+  function escapeHTML(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
+  function escapeAttr(s) { return escapeHTML(String(s)).replaceAll('"','&quot;'); }
+  </script>
+</body>
+</html>

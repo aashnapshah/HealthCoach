@@ -1,0 +1,760 @@
+/* HealthCoach Styles */
+:root {
+  --primary-color: #335;
+  --secondary-color: #5b8def;
+  --bg-color: #f8f9fa;
+  --text-color: #333;
+  --border-color: #e5e5e5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.app {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* Header and Navigation Styles */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+/* Progress Menu */
+.progress-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 auto 32px;
+  max-width: 800px;
+  position: relative;
+  padding: 0 20px;
+}
+
+.progress-menu::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: var(--border-color);
+  z-index: 1;
+}
+
+.progress-step {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-color);
+}
+
+.progress-step:hover .step-label {
+  color: var(--secondary-color);
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.step-label {
+  font-size: 13px;
+  text-align: center;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.progress-step.active .step-number {
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
+  color: #fff;
+}
+
+.progress-step.active .step-label {
+  color: var(--secondary-color);
+  font-weight: 600;
+}
+
+.progress-step.completed .step-number {
+  background: #4caf50;
+  border-color: #4caf50;
+  color: #fff;
+}
+
+.progress-step.completed::after {
+  content: '✓';
+  position: absolute;
+  top: 6px;
+  right: -4px;
+  background: #4caf50;
+  color: #fff;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-container {
+  flex: 1;
+  max-width: 300px;
+  margin: 0 20px;
+}
+
+.progress-label {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--primary-color);
+}
+
+.progress-bar {
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--secondary-color);
+  width: 0;
+  transition: width 0.3s ease;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-small {
+  font-size: 32px;
+  line-height: 1;
+  margin-right: 4px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.hide {
+  display: none !important;
+}
+
+/* Patient Selection Styles */
+.patient-selection {
+  padding: 20px 0;
+}
+
+.patient-selection h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: var(--primary-color);
+}
+
+.patient-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.patient-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.patient-card:hover {
+  border-color: var(--secondary-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.patient-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.patient-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: var(--primary-color);
+}
+
+.patient-info p {
+  margin: 4px 0;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* Chat Bubble Styles */
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.avatar-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  width: 100%;
+  padding: 0 20px;  /* Smaller padding for wider bubble */
+}
+
+.qbubble {
+  background: #f0f0f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  width: 95%;  /* Almost full width of the container */
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 0 0 5px 0;  /* Remove auto margins */
+}
+
+.response-options {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 16px;
+}
+
+.response-container {
+  display: flex;
+  justify-content: center;
+  width: auto;
+}
+
+/* Button Styles */
+.opts, .response-buttons {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: auto;
+}
+
+/* Special handling for scale buttons */
+.scale-container .opts {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  gap: 6px;
+}
+
+.scale-container .scale-btn {
+  flex: 1;
+  min-width: 36px;
+  padding: 8px 0;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Special handling for yes/no/maybe buttons */
+.yes-no-btn {
+  min-width: 80px;  /* Smaller fixed width */
+  flex: 0 0 auto;  /* Don't grow or shrink */
+  text-align: center;
+  justify-content: center;
+  white-space: nowrap;  /* Prevent wrapping */
+}
+
+/* Other buttons remain full width */
+.opts button:not(.yes-no-btn), .response-buttons button:not(.yes-no-btn) {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+.opt, .yes-no-btn, .response-btn, .text-submit-btn, .action-btn, .scale-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.opt:hover, .yes-no-btn:hover, .response-btn:hover, .scale-btn:hover, .text-submit-btn:hover {
+  background: #f5f5f5;
+  border-color: var(--secondary-color);
+}
+
+.opt.sel, .yes-no-btn.selected, .response-btn.selected, .scale-btn.selected {
+  border-color: var(--secondary-color);
+  background: #eef3ff;
+  font-weight: 600;
+}
+
+.yes-no-btn.yes-btn:hover {
+  background: #e8f5e9;
+  border-color: #4caf50;
+}
+
+.yes-no-btn.no-btn:hover {
+  background: #ffebee;
+  border-color: #f44336;
+}
+
+/* Text Input Styles */
+.text-input {
+  width: 100%;
+  resize: none;
+  padding: 8px 32px 8px 12px;  /* Extra padding for submit button */
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  font-family: inherit;
+  font-size: 14px;
+  height: 36px;  /* Match button height */
+  line-height: 20px;
+}
+
+.text-submit-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--secondary-color);
+  font-size: 16px;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+}
+
+.text-input-container {
+  display: flex;
+  gap: 8px;
+  width: 280px;  /* Approximately 3 yes/no buttons + gaps */
+  align-items: center;
+  margin: 0 auto;  /* Center in container */
+}
+
+/* Scale Styles */
+.scale-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  position: relative;
+  padding: 24px 0 8px 0;
+}
+
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  opacity: 0.7;
+  position: absolute;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+/* Card Styles */
+.card, .section-card, .summary-card {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.section-header {
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--primary-color);
+}
+
+/* Summary Styles */
+.summary-card {
+  background: #f0f7ff;
+  border-color: var(--secondary-color);
+}
+
+.summary-content pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 16px 0;
+}
+
+.summary-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.action-btn.primary {
+  background: #4caf50;
+  color: #fff;
+  border-color: #4caf50;
+}
+
+.action-btn.primary:hover {
+  background: #45a049;
+}
+
+.action-btn.secondary {
+  background: #fff;
+  color: var(--text-color);
+}
+
+/* Loading Indicator */
+.minimal-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.8;
+  margin: 20px 0;
+}
+
+.minimal-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #ccc;
+  border-top-color: #555;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.typing {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.typing .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #999;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+
+.typing .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Fade In Animation */
+.fadein {
+  animation: fadein 200ms ease-in;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Back Button */
+.back-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  background: #f7f7f7;
+  border-color: var(--secondary-color);
+}
+
+/* Stream Container */
+#stream {
+  margin-top: 20px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding-bottom: 40px;
+}
+
+/* Multiselect Options */
+.opts.multiselect {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.opt.multiselect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+}
+
+.opt.multiselect.sel {
+  border-color: var(--secondary-color);
+  background: #eef3ff;
+}
+
+.opt.multiselect::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.opt.multiselect.sel::before {
+  content: '✓';
+  background: var(--secondary-color);
+  color: #fff;
+  border-color: var(--secondary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.submit-container {
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Page Navigation Styles */
+.pages-container {
+  position: relative;
+  min-height: calc(100vh - 200px);
+}
+
+.page {
+  display: none;
+  animation: fadein 0.3s ease-in;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page.active {
+  display: block;
+}
+
+.questions-container {
+  margin-top: 20px;
+}
+
+.section-container h2 {
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.section-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Review Page Styles */
+.review-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.review-section {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.review-section h3 {
+  color: var(--primary-color);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.answer-review {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8f9fa;
+}
+
+.answer-review:hover {
+  background: #f0f0f0;
+}
+
+.answer-review .question {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--primary-color);
+}
+
+.answer-review .answer {
+  color: var(--text-color);
+}
+
+.answer-review .edit-btn {
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--secondary-color);
+  background: none;
+  border: 1px solid var(--secondary-color);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.answer-review .edit-btn:hover {
+  background: #eef3ff;
+}
+
+.review-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.feedback-container {
+  margin-top: 20px;
+}
+
+.feedback-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: inherit;
+  margin-bottom: 12px;
+  resize: vertical;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .patient-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .qbubble {
+    max-width: 100%;
+  }
+  
+  .response-options {
+    margin-left: 0;
+  }
+  
+  .opts.multiselect {
+    grid-template-columns: 1fr;
+  }
+}
+
