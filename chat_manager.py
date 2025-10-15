@@ -61,7 +61,8 @@ class ChatManager:
         elif self.stage == ChatStage.VISIT_PREP:
             # Handle visit preparation
             if not self.visit_session:
-                self.visit_session = VisitSession(self.patient_id, self.patient_data)
+                intake_answers = getattr(self.intake_session, 'responses', {}) if self.intake_session else {}
+                self.visit_session = VisitSession(self.patient_id, self.patient_data, intake_answers)
             
             question = get_next_visit_question(self.visit_session)
             
