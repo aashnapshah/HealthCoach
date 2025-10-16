@@ -17,11 +17,10 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     ENV = os.environ.get('FLASK_ENV', 'development')
     
-    # Ollama Configuration (for health checks)
-    OLLAMA_HOST = os.environ.get('OLLAMA_HOST', '127.0.0.1')
-    OLLAMA_PORT = os.environ.get('OLLAMA_PORT', '11434')
-    OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
-    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama2')
+    # Hugging Face Configuration
+    HF_MODEL = os.environ.get('HF_MODEL', 'meta-llama/Llama-3.1-8B')
+    HF_TOKEN = os.environ.get('HF_TOKEN', None)  # Required for gated models like Llama
+    HF_CACHE_DIR = os.environ.get('HF_CACHE_DIR', '/n/data1/hms/dbmi/manrai/aashna/HealthCoachV2/cache/huggingface')  # Optional: specify cache location
     
     # RunPod Configuration (Optional)
     RUNPOD_API_KEY = os.environ.get('RUNPOD_API_KEY')

@@ -5,10 +5,18 @@ Handles the web interface and chat flow
 
 import sys
 import os
+import time
+
+print("\n" + "="*70)
+print("⏱️  [SERVER] Server module loading started...")
+_server_load_start = time.time()
+
 import requests
 from typing import Dict
 from flask import Flask, jsonify, request, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+print(f"⏱️  [SERVER] Flask imports done ({time.time() - _server_load_start:.2f}s)")
 
 # Add parent directories to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,36 +25,52 @@ project_root = os.path.dirname(flask_app_dir)
 
 # Add flask_app to path for config
 sys.path.insert(0, flask_app_dir)
+print(f"⏱️  [SERVER] Loading Config...")
+_config_start = time.time()
 from config import Config
+print(f"⏱️  [SERVER] Config loaded ({time.time() - _config_start:.2f}s)")
 
 # App setup (paths relative to this file)
+print(f"⏱️  [SERVER] Creating Flask app...")
+_app_start = time.time()
 app = Flask(__name__, 
             static_folder=os.path.join(flask_app_dir, 'static'),
             static_url_path='/static',
             template_folder=os.path.join(flask_app_dir, 'templates'))
 app.config.from_object(Config)
 app.wsgi_app = ProxyFix(app.wsgi_app)
+print(f"⏱️  [SERVER] Flask app created ({time.time() - _app_start:.2f}s)")
 
 # Import domain modules
+print(f"⏱️  [SERVER] Loading domain modules (ehr_data, chat_manager)...")
+_domain_start = time.time()
 sys.path.insert(0, os.path.join(project_root, 'data'))
 from ehr_data import PATIENT_DATA, get_patient_data, get_patient_names
-from chat_manager import ChatManager
+print(f"⏱️  [SERVER] ehr_data loaded ({time.time() - _domain_start:.2f}s)")
 
-def check_ollama_status():
-    """Check if Ollama is running and responding"""
+_chat_start = time.time()
+from chat_manager import ChatManager
+print(f"⏱️  [SERVER] chat_manager loaded ({time.time() - _chat_start:.2f}s)")
+print(f"✓ [SERVER] Server module loaded ({time.time() - _server_load_start:.2f}s total)")
+print("="*70 + "\n")
+
+def check_model_availability():
+    """Check if Hugging Face models are accessible"""
     try:
-        response = requests.get(f"{Config.OLLAMA_BASE_URL}/api/version", timeout=5)
-        if response.status_code == 200:
-            print(f"✓ Ollama is running (version: {response.json().get('version')})")
-            return True
-        else:
-            print(f"❌ Ollama returned status code: {response.status_code}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Failed to connect to Ollama: {e}")
-        print(f"  • Tried connecting to: {Config.OLLAMA_BASE_URL}")
-        print("  • Make sure Ollama is running and the host/port are correct")
-        print("  • Set OLLAMA_HOST and OLLAMA_PORT environment variables if needed")
+        from transformers import AutoTokenizer
+        # Try to load the tokenizer as a simple check
+        tokenizer = AutoTokenizer.from_pretrained(
+            Config.HF_MODEL,
+            token=Config.HF_TOKEN,
+            cache_dir=Config.HF_CACHE_DIR
+        )
+        print(f"✓ Successfully verified access to Hugging Face model: {Config.HF_MODEL}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to access Hugging Face model: {e}")
+        print(f"  • Model: {Config.HF_MODEL}")
+        print("  • This model will be downloaded on first use")
+        print("  • Set HF_TOKEN environment variable if using a gated model (like Llama)")
         return False
 
 # Simple in-memory sessions keyed by patient_id (demo)
@@ -82,64 +106,87 @@ def to_ui_payload(q: dict) -> dict:
         "section": section
     }
 
+@app.route("/health")
+def health():
+    """Simple health check endpoint"""
+    print("\n💚 API: /health endpoint called")
+    return jsonify({"status": "ok", "message": "Server is running!"})
+
 @app.route("/")
 def index():
-    return render_template("patient_selection.html")
+    import time
+    _start = time.time()
+    print("\n🌐 [SERVER] Route '/' accessed - loading patient selection page")
+    result = render_template("patient_selection.html")
+    print(f"   ✓ Template rendered ({time.time() - _start:.3f}s)")
+    return result
 
 @app.route("/patient_selection.html")
 def patient_selection():
+    print("\n🌐 DEBUG: Route '/patient_selection.html' accessed")
     return render_template("patient_selection.html")
 
 @app.route("/intake.html")
 def intake_page():
+    print("\n🌐 DEBUG: Route '/intake.html' accessed")
     return render_template("intake_continuous.html")
 
 @app.route("/visit_prep.html")
 def visit_prep_page():
+    print("\n🌐 DEBUG: Route '/visit_prep.html' accessed")
     return render_template("visit_prep_chat.html")
 
 @app.route("/visit_prep_chat.html")
 def visit_prep_chat_page():
+    print("\n🌐 DEBUG: Route '/visit_prep_chat.html' accessed")
     return render_template("visit_prep_chat.html")
 
 @app.route("/intake_continuous.html")
 def intake_continuous_page():
+    print("\n🌐 DEBUG: Route '/intake_continuous.html' accessed")
     return render_template("intake_continuous.html")
 
 @app.route("/visit_prep_continuous.html")
 def visit_prep_continuous_page():
+    print("\n🌐 DEBUG: Route '/visit_prep_continuous.html' accessed")
     return render_template("visit_prep_continuous.html")
 
 @app.route("/final_summary.html")
 def final_summary_page():
+    print("\n🌐 DEBUG: Route '/final_summary.html' accessed")
     return render_template("final_summary.html")
 
 @app.route("/start_visit_prep", methods=["POST"])
 def start_visit_prep():
     try:
-        print("DEBUG: Starting visit prep...")
+        print("\n" + "="*60)
+        print("📋 API: start_visit_prep endpoint called")
+        print("="*60)
         data = request.get_json(force=True) or {}
         patient_id = str(data.get("patient_id", "")).upper()
-        print(f"DEBUG: Patient ID: {patient_id}")
+        print(f"  ➜ Patient ID: {patient_id}")
         
         patient = get_patient_data(patient_id)
         if not patient:
-            print(f"ERROR: Invalid patient_id: {patient_id}")
+            print(f"  ❌ ERROR: Invalid patient_id: {patient_id}")
             return jsonify({"error": "Invalid patient_id"}), 400
 
-        print(f"DEBUG: Found patient: {patient.get('name')}")
+        print(f"  ✓ Found patient: {patient.get('name')}")
 
         # Create a new chat manager specifically for visit prep
+        print(f"  ➜ Creating ChatManager...")
         manager = ChatManager(patient_id, patient, start_at_visit_prep=True)
         CHAT_SESSIONS[patient_id] = manager
+        print(f"  ✓ ChatManager created")
         
         # Get first question
-        print("DEBUG: Getting first question...")
+        print(f"  ➜ Getting first question (LLM will load here if needed)...")
         question, summary = manager.get_next_question()
-        print(f"DEBUG: Question received: {question}")
+        print(f"  ✓ Question received: {type(question)}")
         
         response = to_ui_payload(question)
-        print(f"DEBUG: Response payload: {response}")
+        print(f"  ✓ Response prepared, sending to client")
+        print("="*60 + "\n")
         
         # Add summary if provided
         if summary:
@@ -147,22 +194,33 @@ def start_visit_prep():
             
         return jsonify(response)
     except Exception as e:
-        print(f"ERROR in start_visit_prep: {str(e)}")
+        print(f"\n❌ EXCEPTION in start_visit_prep: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route("/patients", methods=["GET"])
 def patients():
+    import time
+    _start = time.time()
+    print("\n📋 [SERVER] /patients endpoint called")
+    print(f"   • PATIENT_DATA type: {type(PATIENT_DATA)}")
+    print(f"   • PATIENT_DATA keys: {list(PATIENT_DATA.keys())}")
+    print(f"   • Number of patients: {len(PATIENT_DATA)}")
+    
     out = []
     for pid, pdata in PATIENT_DATA.items():
-        out.append({
+        patient_info = {
             "id": pid,
             "name": pdata.get("name"),
             "age": pdata.get("age"),
             "gender": pdata.get("gender"),
             "dob": pdata.get("dob"),
-        })
+        }
+        print(f"   • Processing patient {pid}: {patient_info}")
+        out.append(patient_info)
+    
+    print(f"   ✓ Returning {len(out)} patients ({time.time() - _start:.3f}s)")
     return jsonify(out)
 
 @app.route("/start_intake", methods=["POST"])
@@ -498,21 +556,29 @@ def save_comment():
         return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == "__main__":
-    print("\n=== Starting HealthCoach Server ===")
+    print("\n" + "="*70)
+    print("🏥 HEALTHCOACH SERVER STARTING")
+    print("="*70)
     print(f"• Environment: {Config.ENV}")
-    print(f"• Ollama URL: {Config.OLLAMA_BASE_URL}")
-    print(f"• Ollama Model: {Config.OLLAMA_MODEL}")
+    print(f"• Debug Mode: {Config.DEBUG}")
+    print(f"• Port: {Config.PORT}")
+    print(f"• Hugging Face Model: {Config.HF_MODEL}")
+    print(f"• HF Token: {'Set' if Config.HF_TOKEN else 'Not set (may be required for gated models)'}")
     
-    # Check Ollama status
-    if not check_ollama_status():
-        print("\n❌ Failed to connect to Ollama. Server will start but LLM features may not work.")
-        print("  To fix this:")
-        print("  1. Make sure Ollama is running")
-        print("  2. Check if you need to set OLLAMA_HOST/OLLAMA_PORT environment variables")
-        print("  3. Verify network connectivity to Ollama server")
-    else:
-        print("\n✓ Successfully connected to Ollama")
+    # Model will load on first use (lazy loading)
+    print("\n📦 Model Configuration:")
+    print("  ✓ LLM will load automatically on first question generation")
+    print("  ⏱️  First question may take 2-5 minutes (model downloads on first use)")
+    print("  💾 Model will be cached for subsequent questions")
+    
+    # Show available patients
+    print(f"\n👥 Available Patients: {len(PATIENT_DATA)}")
+    for pid, name in get_patient_names().items():
+        print(f"  • {pid}: {name}")
     
     # Start server
-    print(f"\n🚀 Starting server on port {Config.PORT}")
+    print("\n" + "="*70)
+    print(f"🚀 SERVER READY - Open http://localhost:{Config.PORT} in your browser")
+    print("="*70)
+    print("\n💡 Watch this terminal for debug output when you use the app\n")
     app.run(host="0.0.0.0", port=Config.PORT, debug=Config.DEBUG)

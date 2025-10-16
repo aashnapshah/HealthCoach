@@ -5,6 +5,10 @@ Manages the pre-visit workflow to gather current health status and visit goals
 
 import sys
 import os
+import time
+
+print("⏱️  [VISIT_PREP] Module loading started...")
+_module_start = time.time()
 
 # Add model directory to path (now we're in flask_app/api/, need to go up 2 levels)
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,12 +18,17 @@ sys.path.insert(0, os.path.join(project_root, 'model'))
 
 from typing import Dict, Optional, List
 from enum import Enum
+
+print(f"⏱️  [VISIT_PREP] Loading question_generator...")
+_qg_start = time.time()
 from question_generator import (
     initialize_question_llm,
     generate_visit_preparation_questions_with_llm,
     generate_visit_preparation_insights,
     generate_final_summary_llm
 )
+print(f"⏱️  [VISIT_PREP] question_generator loaded ({time.time() - _qg_start:.2f}s)")
+print(f"✓ [VISIT_PREP] Module loaded ({time.time() - _module_start:.2f}s total)")
 
 class QuestionType(Enum):
     YES_NO = "yes_no"
@@ -48,20 +57,26 @@ class VisitSession:
         self.questions: List[Dict] = []
         self.current_index = 0
         
-        # Initialize LLM
-        try:
-            self.llm = initialize_question_llm()
-            self.llm_available = True
-        except Exception as e:
-            print(f"Warning: LLM initialization failed: {e}")
-            self.llm_available = False
-            self.llm = None
+        # Lazy LLM initialization - only load when needed
+        self.llm = None
+        self.llm_available = None  # None means not tried yet, False means failed
 
     def get_visit_questions(self) -> List[Dict]:
         """Get visit preparation questions"""
         if not self.questions:
+            # Initialize LLM on first use (LAZY LOADING)
+            if self.llm_available is None:
+                print("Initializing LLM for the first time...")
+                try:
+                    self.llm = initialize_question_llm()
+                    self.llm_available = True if self.llm else False
+                except Exception as e:
+                    print(f"Warning: LLM initialization failed: {e}")
+                    self.llm_available = False
+                    self.llm = None
+            
             try:
-                if self.llm_available:
+                if self.llm_available and self.llm:
                     questions = generate_visit_preparation_questions_with_llm(self.patient_data, self.llm, self.intake_answers)
                     if questions:
                         self.questions = questions

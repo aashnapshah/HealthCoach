@@ -3,10 +3,23 @@ HealthCoach Chat Flow Manager
 Manages the sequential flow of intake verification and visit preparation
 """
 
+import time
+print("⏱️  [CHAT_MANAGER] Module loading started...")
+_module_start = time.time()
+
 from typing import Dict, Optional, Tuple
 from enum import Enum
+
+print(f"⏱️  [CHAT_MANAGER] Loading intake module...")
+_intake_start = time.time()
 from intake import IntakeSession, get_next_question as get_next_intake_question, generate_verification_summary
+print(f"⏱️  [CHAT_MANAGER] intake loaded ({time.time() - _intake_start:.2f}s)")
+
+print(f"⏱️  [CHAT_MANAGER] Loading visit_prep module...")
+_visit_start = time.time()
 from visit_prep import VisitSession, get_next_question as get_next_visit_question, generate_visit_summary
+print(f"⏱️  [CHAT_MANAGER] visit_prep loaded ({time.time() - _visit_start:.2f}s)")
+print(f"✓ [CHAT_MANAGER] Module loaded ({time.time() - _module_start:.2f}s total)")
 
 class ChatStage(Enum):
     INTAKE = "intake"              # Medical record verification
