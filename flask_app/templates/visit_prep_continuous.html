@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach - Visit Preparation</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .continuous-form-container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    .form-header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid #e5e5e5;
+    }
+    
+    .form-header h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    
+    .form-header p {
+      color: #666;
+      font-size: 16px;
+    }
+    
+    .question-block {
+      margin-bottom: 48px;
+      padding: 24px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    
+    .question-number {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0b5;
+      margin-bottom: 8px;
+    }
+    
+    .question-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 16px;
+    }
+    
+    .question-context {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    
+    .answer-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .answer-option {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .answer-option:hover {
+      border-color: #0b5;
+      background: #f0f9f4;
+    }
+    
+    .answer-option.selected {
+      border-color: #0b5;
+      background: #e8f5f0;
+      font-weight: 600;
+    }
+    
+    .answer-option input[type="radio"],
+    .answer-option input[type="checkbox"] {
+      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .text-answer {
+      width: 100%;
+      min-height: 120px;
+      padding: 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    
+    .text-answer:focus {
+      outline: none;
+      border-color: #0b5;
+    }
+    
+    .scale-container {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .scale-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .scale-btn:hover {
+      border-color: #0b5;
+      background: #f0f9f4;
+    }
+    
+    .scale-btn.selected {
+      border-color: #0b5;
+      background: #0b5;
+      color: white;
+    }
+    
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .submit-container {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 2px solid #e5e5e5;
+      text-align: center;
+    }
+    
+    .submit-btn {
+      padding: 16px 48px;
+      background: #0b5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+      background: #0a4;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,187,85,0.3);
+    }
+    
+    .submit-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .loading-content {
+      background: white;
+      padding: 32px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0b5;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .hide {
+      display: none;
+    }
+    
+    .error-message {
+      color: #d32f2f;
+      background: #ffebee;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      border-left: 4px solid #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-small">👨‍⚕️</div>
+        <div>
+          <div class="title">HealthCoach</div>
+          <div class="subtitle" id="header-subtitle">Visit Preparation</div>
+        </div>
+      </div>
+      <button class="back-btn" onclick="goBack()">← Back</button>
+    </div>
+
+    <div class="continuous-form-container">
+      <div class="form-header">
+        <h1>🏥 Visit Preparation</h1>
+        <p id="patient-name">Prepare for your upcoming appointment</p>
+      </div>
+
+      <div id="error-container"></div>
+      <div id="questions-container"></div>
+
+      <div class="submit-container">
+        <button class="submit-btn" id="submit-btn" onclick="submitForm()">Submit & View Summary →</button>
+      </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay hide">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <p id="loading-text">Loading questions...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const state = {
+    patientId: null,
+    questions: [],
+    answers: {}
+  };
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', init);
+
+  async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    state.patientId = urlParams.get('patient_id');
+    
+    if (!state.patientId) {
+      alert('No patient selected. Redirecting...');
+      window.location.href = '/';
+      return;
+    }
+
+    console.log('=== INIT START ===');
+    console.log('Patient ID:', state.patientId);
+    console.log('Checking localStorage for key:', `visit_prep_answers_${state.patientId}`);
+    const savedData = localStorage.getItem(`visit_prep_answers_${state.patientId}`);
+    console.log('Saved data in localStorage:', savedData);
+    console.log('=== INIT END ===');
+
+    await loadQuestions();
+  }
+
+  async function loadQuestions() {
+    showLoading('Loading your visit preparation questions...');
+    
+    try {
+      const response = await fetch('/get_all_visit_prep_questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: state.patientId })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to load questions');
+      }
+
+      state.questions = data.questions || [];
+      
+      if (state.questions.length === 0) {
+        showError('No questions available. Please contact support.');
+        return;
+      }
+
+      renderQuestions();
+      hideLoading();
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      showError(`Error loading questions: ${error.message}`);
+      hideLoading();
+    }
+  }
+
+  function renderQuestions() {
+    const container = document.getElementById('questions-container');
+    container.innerHTML = '';
+
+    // Load saved answers from localStorage
+    const key = `visit_prep_answers_${state.patientId}`;
+    console.log('Loading saved answers with key:', key);
+    const savedAnswers = localStorage.getItem(key);
+    console.log('Saved answers from localStorage:', savedAnswers);
+    if (savedAnswers) {
+      state.answers = JSON.parse(savedAnswers);
+      console.log('Loaded answers into state:', state.answers);
+    }
+
+    state.questions.forEach((q, index) => {
+      const questionBlock = document.createElement('div');
+      questionBlock.className = 'question-block';
+      questionBlock.innerHTML = `
+        <div class="question-number">Question ${index + 1} of ${state.questions.length}</div>
+        <div class="question-text">${escapeHTML(q.question)}</div>
+        ${q.context ? `<div class="question-context">${escapeHTML(q.context)}</div>` : ''}
+        ${renderAnswerInput(q, index)}
+      `;
+      container.appendChild(questionBlock);
+    });
+    
+    // Restore visual state after rendering - use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      console.log('Restoring visual state...');
+      restoreVisualState();
+    }, 50);
+  }
+
+  function restoreVisualState() {
+    console.log('restoreVisualState called with answers:', state.answers);
+    console.log('Number of answers to restore:', Object.keys(state.answers).length);
+    
+    Object.keys(state.answers).forEach(qKey => {
+      const value = state.answers[qKey];
+      console.log(`Restoring ${qKey} = ${value}`);
+      
+      // Handle radio buttons and checkboxes
+      if (Array.isArray(value)) {
+        console.log(`${qKey} is array:`, value);
+        value.forEach(v => {
+          // Try to find by exact value match
+          const inputs = document.querySelectorAll(`input[name="${qKey}"]`);
+          console.log(`Found ${inputs.length} inputs for ${qKey}`);
+          inputs.forEach(input => {
+            console.log(`  Input value: "${input.value}", looking for: "${v}", match: ${input.value === v}`);
+            if (input.value === v) {
+              input.checked = true;
+              input.closest('.answer-option')?.classList.add('selected');
+              console.log(`  Checked ${qKey}=${v}`);
+            }
+          });
+        });
+      } else {
+        // Try to find input by iterating through all inputs with this name
+        const inputs = document.querySelectorAll(`input[name="${qKey}"]`);
+        console.log(`Found ${inputs.length} inputs for ${qKey}`);
+        let found = false;
+        inputs.forEach(input => {
+          console.log(`  Input value: "${input.value}", looking for: "${value}", match: ${input.value === value}`);
+          if (input.value === value) {
+            input.checked = true;
+            input.closest('.answer-option')?.classList.add('selected');
+            console.log(`  Checked input for ${qKey}`);
+            found = true;
+          }
+        });
+        
+        if (!found) {
+          // Handle scale buttons
+          const scaleBtn = document.querySelector(`.scale-btn[data-question="${qKey}"][data-value="${value}"]`);
+          console.log(`Looking for scale button ${qKey}=${value}, found:`, scaleBtn);
+          if (scaleBtn) {
+            scaleBtn.classList.add('selected');
+            console.log(`Selected scale button for ${qKey}`);
+            found = true;
+          }
+        }
+        
+        if (!found) {
+          // Handle text areas
+          const textarea = document.getElementById(qKey);
+          console.log(`Looking for textarea ${qKey}, found:`, textarea);
+          if (textarea) {
+            textarea.value = value;
+            console.log(`Set textarea value for ${qKey}`);
+          }
+        }
+      }
+    });
+    
+    console.log('Visual state restoration complete');
+  }
+
+  function renderAnswerInput(question, index) {
+    const qKey = question.question_key || `q_${index}`;
+    
+    switch (question.question_type) {
+      case 'yes_no':
+        return `
+          <div class="answer-options">
+            <label class="answer-option">
+              <input type="radio" name="${qKey}" value="yes" onchange="saveAnswer('${qKey}', 'yes', this)">
+              ✓ Yes
+            </label>
+            <label class="answer-option">
+              <input type="radio" name="${qKey}" value="no" onchange="saveAnswer('${qKey}', 'no', this)">
+              ✗ No
+            </label>
+            <label class="answer-option">
+              <input type="radio" name="${qKey}" value="not_sure" onchange="saveAnswer('${qKey}', 'not_sure', this)">
+              ? Not Sure
+            </label>
+          </div>
+        `;
+      
+      case 'multiple_choice':
+        const isMultiselect = question.multiselect === true;
+        const inputType = isMultiselect ? 'checkbox' : 'radio';
+        return `
+          <div class="answer-options">
+            ${(question.options || []).map(opt => `
+              <label class="answer-option">
+                <input type="${inputType}" name="${qKey}" value="${escapeAttr(opt)}" 
+                  onchange="saveAnswer('${qKey}', this.value, this, ${isMultiselect})">
+                ${escapeHTML(opt)}
+              </label>
+            `).join('')}
+          </div>
+        `;
+      
+      case 'scale_1_10':
+        return `
+          <div class="scale-labels">
+            <span>${question.scale_labels?.['1'] || 'Low'}</span>
+            <span>${question.scale_labels?.['10'] || 'High'}</span>
+          </div>
+          <div class="scale-container">
+            ${Array.from({length: 10}, (_, i) => i + 1).map(n => `
+              <button type="button" class="scale-btn" data-question="${qKey}" data-value="${n}" 
+                onclick="saveScaleAnswer('${qKey}', '${n}', this)">${n}</button>
+            `).join('')}
+          </div>
+        `;
+      
+      case 'text':
+        return `
+          <textarea class="text-answer" id="${qKey}" 
+            placeholder="${escapeAttr(question.placeholder || 'Type your answer here...')}"
+            onchange="saveAnswer('${qKey}', this.value, this)"
+            onblur="saveAnswer('${qKey}', this.value, this)"></textarea>
+        `;
+      
+      default:
+        return '<p>Unknown question type</p>';
+    }
+  }
+
+  function persistAnswers() {
+    console.log('Persisting answers:', state.answers);
+    console.log('Patient ID:', state.patientId);
+    const key = `visit_prep_answers_${state.patientId}`;
+    console.log('LocalStorage key:', key);
+    localStorage.setItem(key, JSON.stringify(state.answers));
+    console.log('Saved to localStorage');
+  }
+
+  function saveAnswer(questionKey, value, element, isMultiselect = false) {
+    console.log('saveAnswer called:', questionKey, value, isMultiselect);
+    if (isMultiselect) {
+      // For checkboxes, collect all checked values
+      const checkboxes = document.querySelectorAll(`input[name="${questionKey}"]:checked`);
+      const values = Array.from(checkboxes).map(cb => cb.value);
+      state.answers[questionKey] = values;
+    } else {
+      state.answers[questionKey] = value;
+    }
+    
+    console.log('Current state.answers:', state.answers);
+    
+    // Save to localStorage
+    persistAnswers();
+    
+    // Visual feedback
+    if (element && element.closest) {
+      const option = element.closest('.answer-option');
+      if (option && !isMultiselect) {
+        // Remove selected class from siblings
+        option.parentElement.querySelectorAll('.answer-option').forEach(opt => {
+          opt.classList.remove('selected');
+        });
+        option.classList.add('selected');
+      } else if (option && isMultiselect) {
+        option.classList.toggle('selected', element.checked);
+      }
+    }
+  }
+
+  function saveScaleAnswer(questionKey, value, button) {
+    console.log('saveScaleAnswer called:', questionKey, value);
+    state.answers[questionKey] = value;
+    
+    // Save to localStorage
+    persistAnswers();
+    
+    // Visual feedback
+    const container = button.parentElement;
+    container.querySelectorAll('.scale-btn').forEach(btn => {
+      btn.classList.remove('selected');
+    });
+    button.classList.add('selected');
+  }
+
+  async function submitForm() {
+    // Validate that all questions are answered
+    const unanswered = [];
+    state.questions.forEach((q, index) => {
+      const qKey = q.question_key || `q_${index}`;
+      if (!state.answers[qKey] || 
+          (Array.isArray(state.answers[qKey]) && state.answers[qKey].length === 0)) {
+        unanswered.push(index + 1);
+      }
+    });
+
+    if (unanswered.length > 0) {
+      alert(`Please answer all questions. Missing: Question ${unanswered.join(', ')}`);
+      return;
+    }
+
+    showLoading('Submitting your answers...');
+    document.getElementById('submit-btn').disabled = true;
+
+    try {
+      const response = await fetch('/submit_visit_prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          patient_id: state.patientId, 
+          answers: state.answers 
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit answers');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Clear saved answers after successful submission
+        localStorage.removeItem(`visit_prep_answers_${state.patientId}`);
+        
+        // Redirect to final summary
+        window.location.href = `/final_summary.html?patient_id=${state.patientId}`;
+      } else {
+        throw new Error(data.error || 'Submission failed');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      showError('Error submitting answers. Please try again.');
+      document.getElementById('submit-btn').disabled = false;
+      hideLoading();
+    }
+  }
+
+  function goBack() {
+    // Save current progress before going back
+    console.log('goBack called - saving answers before navigation');
+    console.log('Current answers to save:', state.answers);
+    persistAnswers();
+    
+    // Small delay to ensure localStorage save completes
+    setTimeout(() => {
+      console.log('Navigating to intake page');
+      window.location.href = `/intake_continuous.html?patient_id=${state.patientId}`;
+    }, 100);
+  }
+
+  function showLoading(text) {
+    document.getElementById('loading-text').textContent = text;
+    document.getElementById('loading-overlay').classList.remove('hide');
+  }
+
+  function hideLoading() {
+    document.getElementById('loading-overlay').classList.add('hide');
+  }
+
+  function showError(message) {
+    const container = document.getElementById('error-container');
+    container.innerHTML = `<div class="error-message">${escapeHTML(message)}</div>`;
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function escapeAttr(str) {
+    return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  </script>
+</body>
+</html>
+

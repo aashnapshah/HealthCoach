@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .logo-header {
+      text-align: center;
+      margin: 40px 0;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    .logo-text {
+      font-size: 32px;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+    .patient-list {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .patient-card {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      margin-bottom: 16px;
+      background: white;
+      border-radius: 12px;
+      border: 2px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .patient-card:hover {
+      border-color: var(--secondary-color);
+      transform: translateY(-2px);
+    }
+    .patient-avatar {
+      width: 48px;
+      height: 48px;
+      margin-right: 16px;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .patient-info h3 {
+      margin: 0 0 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="logo-header">
+      <div class="logo">👨‍⚕️</div>
+      <div class="logo-text">HealthCoach</div>
+    </div>
+    
+    <div class="patient-list">
+      <h2 style="text-align: center; margin-bottom: 32px;">Select a Patient</h2>
+      <div id="patient-grid"></div>
+    </div>
+  </div>
+
+  <script>
+  const api = {
+    async getJSON(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('Request failed: ' + res.status);
+      return res.json();
+    },
+    patients() { return this.getJSON('/patients'); }
+  };
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const patients = await api.patients();
+      const patientGrid = document.getElementById('patient-grid');
+      patientGrid.innerHTML = patients.map(p => `
+        <div class="patient-card" onclick="selectPatient('${p.id}')">
+          <div class="patient-avatar">👤</div>
+          <div class="patient-info">
+            <h3>${escapeHTML(p.name)}</h3>
+            <p>Age: ${escapeHTML(p.age || '')} | Gender: ${escapeHTML(p.gender || '')}</p>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.error('Error loading patients:', e);
+      alert('Error loading patients. Please try again.');
+    }
+  });
+
+  function selectPatient(patientId) {
+    location.href = `/intake_continuous.html?patient_id=${patientId}`;
+  }
+
+  function escapeHTML(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+  </script>
+</body>
+</html>

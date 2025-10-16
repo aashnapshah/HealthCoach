@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach - Visit Preparation</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    /* Form container styles */
+    .form-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .question-container {
+      margin-bottom: 32px;
+      min-height: 300px;
+    }
+    
+    .question-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .question-context {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 16px;
+      font-style: italic;
+    }
+    
+    .navigation-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #e5e5e5;
+    }
+    
+    .nav-btn {
+      padding: 12px 32px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    
+    .nav-btn:hover:not(:disabled) {
+      background: #f5f5f5;
+      border-color: #999;
+    }
+    
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .nav-btn.primary {
+      background: #0b5;
+      color: white;
+      border-color: #0a4;
+    }
+    
+    .nav-btn.primary:hover:not(:disabled) {
+      background: #0a4;
+    }
+    
+    .progress-indicator {
+      text-align: center;
+      margin-bottom: 24px;
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .progress-bar-container {
+      height: 6px;
+      background: #e5e5e5;
+      border-radius: 3px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background: #0b5;
+      transition: width 0.3s ease;
+    }
+    
+    /* Answer option styles */
+    .answer-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .answer-option {
+      padding: 16px;
+      border: 2px solid #e5e5e5;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      font-size: 16px;
+    }
+    
+    .answer-option:hover {
+      border-color: #0b5;
+      background: #f0f9f4;
+    }
+    
+    .answer-option.selected {
+      border-color: #0b5;
+      background: #e6f7ed;
+      font-weight: 500;
+    }
+    
+    .answer-option input[type="radio"],
+    .answer-option input[type="checkbox"] {
+      margin-right: 12px;
+    }
+    
+    .text-answer {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e5e5;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .text-answer:focus {
+      outline: none;
+      border-color: #0b5;
+    }
+    
+    .scale-options {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    
+    .scale-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e5e5e5;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .scale-btn:hover {
+      border-color: #0b5;
+      background: #f0f9f4;
+    }
+    
+    .scale-btn.selected {
+      border-color: #0b5;
+      background: #0b5;
+      color: white;
+    }
+    
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .back-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+    }
+    
+    .back-btn:hover {
+      background: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-small">👨‍⚕️</div>
+        <div>
+          <div class="title">HealthCoach</div>
+          <div class="subtitle" id="header-subtitle">Visit Preparation</div>
+        </div>
+      </div>
+      <button class="back-btn" id="back-btn" onclick="goBack()">← Back</button>
+    </div>
+
+    <!-- Form Container -->
+    <div id="form-container" class="form-container">
+      <div class="progress-indicator">
+        <span id="progress-text">Question 1 of 10</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar-fill" style="width: 10%"></div>
+      </div>
+      
+      <div class="question-container" id="question-container">
+        <!-- Question content will be inserted here -->
+      </div>
+      
+      <div class="navigation-buttons">
+        <button class="nav-btn" id="prev-btn" onclick="previousQuestion()">
+          ← Previous
+        </button>
+        <button class="nav-btn primary" id="next-btn" onclick="nextQuestion()">
+          Next →
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  // Application state
+  const state = {
+    selectedPatientId: null,
+    currentQuestionIndex: 0,
+    questions: [],
+    answers: {}
+  };
+
+  // DOM elements
+  const els = {
+    formContainer: document.getElementById('form-container'),
+    questionContainer: document.getElementById('question-container'),
+    headerSubtitle: document.getElementById('header-subtitle'),
+    backBtn: document.getElementById('back-btn'),
+    progressText: document.getElementById('progress-text'),
+    progressBarFill: document.getElementById('progress-bar-fill'),
+    prevBtn: document.getElementById('prev-btn'),
+    nextBtn: document.getElementById('next-btn')
+  };
+
+  // API helpers
+  const api = {
+    async getJSON(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('Request failed: ' + res.status);
+      return res.json();
+    },
+    startVisitPrep(patientId) {
+      return this.getJSON('/start_visit_prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId })
+      });
+    },
+    submitAllAnswers(patientId, answers) {
+      return this.getJSON('/submit_visit_prep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId, answers })
+      });
+    }
+  };
+
+  // Initialize
+  document.addEventListener('DOMContentLoaded', init);
+  
+  async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patient_id');
+    
+    if (!patientId) {
+      alert('No patient selected. Redirecting...');
+      window.location.href = '/';
+      return;
+    }
+    
+    state.selectedPatientId = patientId;
+    await startVisitPrep();
+  }
+
+  async function startVisitPrep() {
+    try {
+      // Load saved progress if exists
+      const savedProgress = localStorage.getItem(`visit_prep_progress_${state.selectedPatientId}`);
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress);
+        state.answers = progress.answers || {};
+        state.currentQuestionIndex = progress.currentQuestionIndex || 0;
+      }
+      
+      // Load questions
+      state.questions = generateQuestions();
+      
+      renderCurrentQuestion();
+    } catch (e) {
+      console.error('Error starting visit prep:', e);
+      alert('Error starting visit preparation. Please try again.');
+    }
+  }
+
+  function generateQuestions() {
+    // Placeholder questions - in production these would come from server
+    return [
+      {
+        id: 'vp1',
+        question: 'What are your main priorities for today\'s visit?',
+        type: 'multiple_choice',
+        options: [
+          'Review my medications',
+          'Discuss new symptoms',
+          'Get test results',
+          'Update my treatment plan',
+          'Discuss lifestyle changes',
+          'Other'
+        ],
+        allow_multiple: true
+      },
+      {
+        id: 'vp2',
+        question: 'Are you currently experiencing any symptoms you want to discuss?',
+        type: 'text',
+        context: 'Please describe any symptoms, when they started, and how often they occur'
+      },
+      {
+        id: 'vp3',
+        question: 'How would you rate your current energy level?',
+        type: 'scale_1_10',
+        scale_labels: { '1': 'Very low energy', '10': 'High energy' }
+      },
+      {
+        id: 'vp4',
+        question: 'What activities or situations make your symptoms better or worse?',
+        type: 'text'
+      },
+      {
+        id: 'vp5',
+        question: 'Have you been taking your medications as prescribed?',
+        type: 'yes_no',
+        context: 'This helps us understand your treatment effectiveness'
+      }
+    ];
+  }
+
+  function renderCurrentQuestion() {
+    const question = state.questions[state.currentQuestionIndex];
+    if (!question) return;
+    
+    // Update progress
+    const progress = ((state.currentQuestionIndex + 1) / state.questions.length) * 100;
+    els.progressBarFill.style.width = `${progress}%`;
+    els.progressText.textContent = `Question ${state.currentQuestionIndex + 1} of ${state.questions.length}`;
+    
+    // Update navigation buttons
+    els.prevBtn.disabled = state.currentQuestionIndex === 0;
+    
+    if (state.currentQuestionIndex === state.questions.length - 1) {
+      els.nextBtn.textContent = 'Submit & Continue →';
+      els.nextBtn.classList.add('primary');
+    } else {
+      els.nextBtn.textContent = 'Next →';
+    }
+    
+    // Render question
+    let html = `
+      <div class="question-title">${escapeHTML(question.question)}</div>
+    `;
+    
+    if (question.context) {
+      html += `<div class="question-context">${escapeHTML(question.context)}</div>`;
+    }
+    
+    // Render answer options based on type
+    html += renderAnswerOptions(question);
+    
+    els.questionContainer.innerHTML = html;
+    
+    // Restore previous answer if exists
+    restoreAnswer(question);
+    
+    // Auto-save progress
+    saveProgress();
+  }
+
+  function renderAnswerOptions(question) {
+    const currentAnswer = state.answers[question.id];
+    
+    switch (question.type) {
+      case 'yes_no':
+        return `
+          <div class="answer-options">
+            <label class="answer-option ${currentAnswer === 'yes' ? 'selected' : ''}">
+              <input type="radio" name="answer" value="yes" onchange="saveAnswer('${question.id}', 'yes')">
+              Yes
+            </label>
+            <label class="answer-option ${currentAnswer === 'no' ? 'selected' : ''}">
+              <input type="radio" name="answer" value="no" onchange="saveAnswer('${question.id}', 'no')">
+              No
+            </label>
+            <label class="answer-option ${currentAnswer === 'not_sure' ? 'selected' : ''}">
+              <input type="radio" name="answer" value="not_sure" onchange="saveAnswer('${question.id}', 'not_sure')">
+              Not Sure
+            </label>
+          </div>
+        `;
+      
+      case 'multiple_choice':
+        if (question.allow_multiple) {
+          const selected = Array.isArray(currentAnswer) ? currentAnswer : [];
+          return `
+            <div class="answer-options">
+              ${question.options.map((opt, i) => `
+                <label class="answer-option ${selected.includes(opt) ? 'selected' : ''}">
+                  <input type="checkbox" 
+                    name="answer_${i}" 
+                    value="${escapeAttr(opt)}"
+                    ${selected.includes(opt) ? 'checked' : ''}
+                    onchange="saveMultipleChoice('${question.id}')">
+                  ${escapeHTML(opt)}
+                </label>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          return `
+            <div class="answer-options">
+              ${question.options.map(opt => `
+                <label class="answer-option ${currentAnswer === opt ? 'selected' : ''}">
+                  <input type="radio" name="answer" value="${escapeAttr(opt)}" onchange="saveAnswer('${question.id}', '${escapeAttr(opt)}')">
+                  ${escapeHTML(opt)}
+                </label>
+              `).join('')}
+            </div>
+          `;
+        }
+      
+      case 'text':
+        return `
+          <textarea 
+            class="text-answer" 
+            id="text-answer"
+            placeholder="Type your answer here..."
+            onchange="saveAnswer('${question.id}', this.value)"
+            onblur="saveAnswer('${question.id}', this.value)"
+          >${escapeHTML(currentAnswer || '')}</textarea>
+        `;
+      
+      case 'scale_1_10':
+        let scaleHtml = '';
+        if (question.scale_labels) {
+          scaleHtml += `
+            <div class="scale-labels">
+              <span>${escapeHTML(question.scale_labels['1'] || '1')}</span>
+              <span>${escapeHTML(question.scale_labels['10'] || '10')}</span>
+            </div>
+          `;
+        }
+        scaleHtml += '<div class="scale-options">';
+        for (let i = 1; i <= 10; i++) {
+          scaleHtml += `
+            <button 
+              class="scale-btn ${currentAnswer == i ? 'selected' : ''}"
+              onclick="saveAnswer('${question.id}', '${i}')"
+            >${i}</button>
+          `;
+        }
+        scaleHtml += '</div>';
+        return scaleHtml;
+      
+      default:
+        return '<p>Unknown question type</p>';
+    }
+  }
+
+  function saveAnswer(questionId, value) {
+    state.answers[questionId] = value;
+    saveProgress();
+    renderCurrentQuestion();
+  }
+
+  function saveMultipleChoice(questionId) {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+    const values = Array.from(checkboxes).map(cb => cb.value);
+    state.answers[questionId] = values;
+    saveProgress();
+    renderCurrentQuestion();
+  }
+
+  function saveProgress() {
+    localStorage.setItem(`visit_prep_progress_${state.selectedPatientId}`, JSON.stringify({
+      answers: state.answers,
+      currentQuestionIndex: state.currentQuestionIndex
+    }));
+  }
+
+  function restoreAnswer(question) {
+    const answer = state.answers[question.id];
+    if (!answer) return;
+    
+    if (question.type === 'yes_no') {
+      const radio = document.querySelector(`input[name="answer"][value="${answer}"]`);
+      if (radio) radio.checked = true;
+    } else if (question.type === 'text') {
+      const textarea = document.getElementById('text-answer');
+      if (textarea) textarea.value = answer;
+    } else if (question.type === 'multiple_choice' && question.allow_multiple) {
+      if (Array.isArray(answer)) {
+        answer.forEach(val => {
+          const checkbox = document.querySelector(`input[type="checkbox"][value="${val}"]`);
+          if (checkbox) checkbox.checked = true;
+        });
+      }
+    }
+  }
+
+  function previousQuestion() {
+    if (state.currentQuestionIndex > 0) {
+      state.currentQuestionIndex--;
+      renderCurrentQuestion();
+    }
+  }
+
+  async function nextQuestion() {
+    // Validate current answer
+    const currentQuestion = state.questions[state.currentQuestionIndex];
+    const answer = state.answers[currentQuestion.id];
+    
+    if (!answer || (Array.isArray(answer) && answer.length === 0)) {
+      alert('Please answer the current question before continuing.');
+      return;
+    }
+    
+    if (state.currentQuestionIndex < state.questions.length - 1) {
+      // Go to next question
+      state.currentQuestionIndex++;
+      renderCurrentQuestion();
+    } else {
+      // Submit all answers
+      await submitVisitPrep();
+    }
+  }
+
+  async function submitVisitPrep() {
+    try {
+      els.nextBtn.disabled = true;
+      els.nextBtn.textContent = 'Submitting...';
+      
+      await api.submitAllAnswers(state.selectedPatientId, state.answers);
+      
+      // Clear saved progress
+      localStorage.removeItem(`visit_prep_progress_${state.selectedPatientId}`);
+      
+      // Redirect to final summary
+      window.location.href = `/final_summary.html?patient_id=${state.selectedPatientId}`;
+    } catch (e) {
+      console.error('Error submitting visit prep:', e);
+      alert('Error submitting. Please try again.');
+      els.nextBtn.disabled = false;
+      els.nextBtn.textContent = 'Submit & Continue →';
+    }
+  }
+
+  function goBack() {
+    // Save progress and go back to intake
+    saveProgress();
+    window.location.href = `/?patient_id=${state.selectedPatientId}`;
+  }
+
+  // Utils
+  function escapeHTML(s) { 
+    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;')
+      .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); 
+  }
+  function escapeAttr(s) { return escapeHTML(String(s)).replaceAll('"','&quot;'); }
+  </script>
+</body>
+</html>
+

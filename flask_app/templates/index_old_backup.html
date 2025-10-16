@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach - Patient Intake</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    .role-btn:hover {
+      border-color: #0b5 !important;
+      background: #f0f9f4 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-small">👨‍⚕️</div>
+        <div>
+          <div class="title">HealthCoach</div>
+          <div class="subtitle" id="header-subtitle">Who are you?</div>
+        </div>
+      </div>
+      <div class="progress-container" id="progress-container">
+        <div class="progress-label" id="progress-label"></div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <button class="back-btn hide" id="back-btn" onclick="goBackToPatientSelection()">← Back</button>
+    </div>
+
+    <!-- Role Selection -->
+    <div id="role-selection" class="role-selection">
+      <div style="text-align: center; max-width: 600px; margin: 80px auto;">
+        <h1 style="font-size: 48px; margin-bottom: 16px;">👨‍⚕️</h1>
+        <h2 style="margin-bottom: 32px;">Welcome to HealthCoach</h2>
+        <p style="margin-bottom: 48px; color: #666;">Please select your role to continue</p>
+        <div style="display: flex; gap: 24px; justify-content: center;">
+          <button class="role-btn" onclick="selectRole('patient')" style="padding: 24px 48px; font-size: 18px; border-radius: 12px; border: 2px solid #ddd; background: white; cursor: pointer; transition: all 0.2s;">
+            👤 Patient
+          </button>
+          <button class="role-btn" onclick="selectRole('clinician')" style="padding: 24px 48px; font-size: 18px; border-radius: 12px; border: 2px solid #ddd; background: white; cursor: pointer; transition: all 0.2s;">
+            🩺 Clinician
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Patient Selection -->
+    <div id="patient-selection" class="patient-selection hide">
+      <h2>Select a Patient</h2>
+      <div id="patient-grid" class="patient-grid"></div>
+    </div>
+
+    <!-- Intake Stream -->
+    <main id="stream" class="stream hide" aria-live="polite"></main>
+
+  </div>
+
+  <script>
+  // Application state
+  const state = {
+    role: null,
+    selectedPatientId: null,
+    currentQuestionKey: null,
+    questionsAnswered: 0,
+    answers: {},
+    currentSection: null,
+    questions: {},  // Store all questions for review
+    editMode: false,
+    isComplete: false  // Track completion state
+  };
+
+  // DOM elements
+  const els = {
+    roleSelection: document.getElementById('role-selection'),
+    patientSelection: document.getElementById('patient-selection'),
+    patientGrid: document.getElementById('patient-grid'),
+    stream: document.getElementById('stream'),
+    headerSubtitle: document.getElementById('header-subtitle'),
+    backBtn: document.getElementById('back-btn'),
+    reviewPage: document.getElementById('review-page'),
+    answersReview: document.getElementById('answers-review'),
+    additionalFeedback: document.getElementById('additional-feedback')
+  };
+
+  // API helpers
+  const api = {
+    async getJSON(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('Request failed: ' + res.status);
+      return res.json();
+    },
+    patients() { return this.getJSON('/patients'); },
+    startIntake(patientId) {
+      return this.getJSON('/start_intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId })
+      });
+    },
+    submit(patientId, answer, questionKey) {
+      return this.getJSON('/submit_answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId, answer, question_key: questionKey })
+      });
+    }
+  };
+
+  // Init
+  document.addEventListener('DOMContentLoaded', init);
+  async function init() {
+    // Check if patient_id is in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patient_id');
+    
+    if (patientId) {
+      // Skip role/patient selection, go directly to intake
+      els.roleSelection.classList.add('hide');
+      els.patientSelection.classList.add('hide');
+      els.stream.classList.remove('hide');
+      els.backBtn.classList.remove('hide');
+      
+      // Fetch patient info and start intake
+      try {
+        const patients = await api.patients();
+        const patient = patients.find(p => p.id === patientId);
+        if (patient) {
+          els.headerSubtitle.textContent = `Intake Form - ${patient.name}`;
+          state.selectedPatientId = patientId;
+          
+          // Check for saved progress
+          const savedProgress = sessionStorage.getItem(`intake_progress_${patientId}`);
+          if (savedProgress) {
+            const progress = JSON.parse(savedProgress);
+            // Check if they completed the intake
+            if (progress.isComplete) {
+              // Redirect to visit prep if already complete
+              window.location.href = `/visit_prep.html?patient_id=${patientId}`;
+              return;
+            }
+            // Resume from saved progress
+            state.answers = progress.answers || {};
+            state.questionsAnswered = progress.questionsAnswered || 0;
+            state.questions = progress.questions || {};
+            state.isComplete = progress.isComplete || false;
+            
+            // Show confirmation to resume or start over
+            if (confirm('You have incomplete progress for this patient. Would you like to continue where you left off?')) {
+              // Resume - reconstruct the UI
+              await resumeProgress();
+              return;
+            } else {
+              // Start over - clear saved progress
+              sessionStorage.removeItem(`intake_progress_${patientId}`);
+            }
+          }
+          
+          showLoadingIndicator();
+          const data = await api.startIntake(patientId);
+          hideLoadingIndicator();
+          state.questionsAnswered = 0;
+          state.answers = {};
+          displayQuestion(data);
+        } else {
+          alert('Patient not found. Redirecting...');
+          window.location.href = '/';
+        }
+      } catch (e) {
+        console.error('Error starting intake:', e);
+        alert('Error starting intake. Redirecting...');
+        window.location.href = '/';
+      }
+    } else {
+      // Show role selection screen
+      els.headerSubtitle.textContent = 'Who are you?';
+      els.roleSelection.classList.remove('hide');
+      els.patientSelection.classList.add('hide');
+      els.stream.classList.add('hide');
+      els.backBtn.classList.add('hide');
+    }
+  }
+
+  // Role selection
+  function selectRole(role) {
+    state.role = role;
+    els.roleSelection.classList.add('hide');
+    els.patientSelection.classList.remove('hide');
+    els.backBtn.classList.remove('hide');
+    els.headerSubtitle.textContent = role === 'clinician' ? 'Select a patient to review' : 'Select a Patient';
+    loadPatients();
+  }
+
+  // Patients
+  async function loadPatients() {
+    try {
+      const patients = await api.patients();
+      els.patientGrid.innerHTML = patients.map(p => `
+        <div class="patient-card" data-id="${escapeAttr(p.id)}" data-name="${escapeAttr(p.name)}">
+          <div class="patient-avatar">${escapeHTML(p.name?.charAt(0)?.toUpperCase() || '?')}</div>
+          <div class="patient-info">
+            <h3>${escapeHTML(p.name)}</h3>
+            <p>Patient ID: ${escapeHTML(p.id)}</p>
+            <p>Age: ${escapeHTML(p.age || '')} | Gender: ${escapeHTML(p.gender || '')}</p>
+            ${p.dob ? `<p>DOB: ${escapeHTML(p.dob)}</p>` : ''}
+          </div>
+        </div>
+      `).join('');
+      els.patientGrid.addEventListener('click', onPatientClick);
+    } catch (e) {
+      console.error('Error loading patients:', e);
+      alert('Error loading patients. Please try again.');
+    }
+  }
+
+  function onPatientClick(e) {
+    const card = e.target.closest('.patient-card');
+    if (!card) return;
+    selectPatient(card.dataset.id, card.dataset.name);
+  }
+
+  async function selectPatient(patientId, patientName) {
+    try {
+      state.selectedPatientId = patientId;
+      els.patientSelection.classList.add('hide');
+      els.stream.classList.remove('hide');
+      els.backBtn.classList.remove('hide');
+      els.headerSubtitle.textContent = `Intake Form - ${patientName}`;
+      els.stream.innerHTML = '';
+      
+      // Check for saved progress
+      const savedProgress = sessionStorage.getItem(`intake_progress_${patientId}`);
+      if (savedProgress) {
+        const progress = JSON.parse(savedProgress);
+        // Check if they completed the intake
+        if (progress.isComplete) {
+          // Redirect to visit prep if already complete
+          window.location.href = `/visit_prep.html?patient_id=${patientId}`;
+          return;
+        }
+        // Resume from saved progress
+        state.answers = progress.answers || {};
+        state.questionsAnswered = progress.questionsAnswered || 0;
+        state.questions = progress.questions || {};
+        state.isComplete = progress.isComplete || false;
+        
+        // Show confirmation to resume or start over
+        if (confirm('You have incomplete progress for this patient. Would you like to continue where you left off?')) {
+          // Resume - reconstruct the UI
+          await resumeProgress();
+          return;
+        } else {
+          // Start over - clear saved progress
+          sessionStorage.removeItem(`intake_progress_${patientId}`);
+        }
+      }
+      
+      showLoadingIndicator();
+      const data = await api.startIntake(patientId);
+      hideLoadingIndicator();
+      state.questionsAnswered = 0;
+      state.answers = {};
+      displayQuestion(data);
+    } catch (e) {
+      console.error('Error starting intake:', e);
+      hideLoadingIndicator();
+      alert('Error starting intake. Try again.');
+    }
+  }
+  
+  async function resumeProgress() {
+    // Reconstruct UI from saved state
+    hideLoadingIndicator();
+    
+    // Add section header
+    const sectionCard = document.createElement('div');
+    sectionCard.className = 'section-card fadein';
+    sectionCard.dataset.section = 'verification';
+    const sectionHeader = document.createElement('div');
+    sectionHeader.className = 'section-header verification';
+    sectionHeader.innerHTML = '<h2>📋 Part 1: Medical Record Review</h2>';
+    sectionCard.appendChild(sectionHeader);
+    els.stream.appendChild(sectionCard);
+    
+    // Reconstruct all answered questions
+    for (const [key, questionData] of Object.entries(state.questions)) {
+      const answer = state.answers[key];
+      if (answer !== undefined) {
+        const card = createQuestionCard(questionData, key);
+        card.classList.add('answered');
+        
+        // Mark the selected answer
+        els.stream.appendChild(card);
+        setTimeout(() => {
+          const answerBtn = card.querySelector(`[onclick*="${key}"]`);
+          if (answerBtn) answerBtn.classList.add('sel', 'selected');
+        }, 10);
+      }
+    }
+    
+    // Get the next question from the server
+    showLoadingIndicator();
+    try {
+      const data = await api.startIntake(state.selectedPatientId);
+      hideLoadingIndicator();
+      if (data) displayQuestion(data);
+    } catch (e) {
+      console.error('Error resuming:', e);
+      hideLoadingIndicator();
+      alert('Error resuming. Starting fresh.');
+      window.location.reload();
+    }
+  }
+
+  // Back button handler
+  function goBackToPatientSelection() {
+    // Save current progress before going back
+    if (state.selectedPatientId) {
+      sessionStorage.setItem(`intake_progress_${state.selectedPatientId}`, JSON.stringify({
+        answers: state.answers,
+        questionsAnswered: state.questionsAnswered,
+        questions: state.questions,
+        isComplete: state.isComplete
+      }));
+      
+      // From intake/stream view, go back to patient selection
+      els.stream.classList.add('hide');
+      els.patientSelection.classList.remove('hide');
+      els.backBtn.textContent = '← Back';
+      els.headerSubtitle.textContent = 'Select a Patient';
+      state.selectedPatientId = null;
+      loadPatients();
+    } else if (!els.patientSelection.classList.contains('hide')) {
+      // From patient selection, go back to role selection
+      els.patientSelection.classList.add('hide');
+      els.roleSelection.classList.remove('hide');
+      els.backBtn.classList.add('hide');
+      els.headerSubtitle.textContent = 'Who are you?';
+      state.role = null;
+    }
+  }
+
+  // Question rendering
+  function displayQuestion(data) {
+    if (!data) return;
+
+    hideLoadingIndicator();
+
+    // Handle completion
+    if (data.type === 'complete') {
+      // Store summary for later use
+      state.currentSummary = data.summary;
+      
+      // Show just the next button, directly in the last question's response area
+      const lastQuestion = els.stream.lastElementChild;
+      if (lastQuestion) {
+        const responseContainer = lastQuestion.querySelector('.response-container');
+        if (responseContainer) {
+          responseContainer.innerHTML = `
+            <div class="summary-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+              <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+            </div>
+          `;
+        }
+      }
+      return;
+    }
+
+    state.currentQuestionKey = data.question_key || `q_${state.questionsAnswered}`;
+    state.questions[state.currentQuestionKey] = data;  // Store question data
+    state.questionsAnswered++;
+
+    // Don't create a question card for completion messages
+    if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+      const completionCard = document.createElement('div');
+      completionCard.className = 'card fadein';
+      completionCard.dataset.questionKey = state.currentQuestionKey;
+      completionCard.innerHTML = buildResponseOptions(data, state.currentQuestionKey);
+      els.stream.appendChild(completionCard);
+      return;
+    }
+
+    // Create question card for normal questions
+    const questionCard = createQuestionCard(data, state.currentQuestionKey);
+    
+    // Only create section header if it's the first question
+    if (state.questionsAnswered === 1) {
+      const sectionCard = document.createElement('div');
+      sectionCard.className = 'section-card fadein';
+      sectionCard.dataset.section = 'verification';
+
+      const sectionHeader = document.createElement('div');
+      sectionHeader.className = 'section-header verification';
+      sectionHeader.innerHTML = '<h2>📋 Part 1: Medical Record Review</h2>';
+
+      sectionCard.appendChild(sectionHeader);
+      els.stream.appendChild(sectionCard);
+    }
+    
+    // Add question card directly to stream
+    els.stream.appendChild(questionCard);
+    scrollToBottom();
+  }
+
+  // Fully refined version of createQuestionCard with careful crafting
+  function createQuestionCard(data, questionKey) {
+    const item = document.createElement('div');
+    item.className = 'card fadein';
+    item.dataset.questionKey = questionKey;
+
+    item.innerHTML = `
+      <div class="qrow">
+        <div class="avatar-label">
+          <div class="avatar">HC</div>
+          <div class="qbubble">
+            ${escapeHTML(data.question || 'Question')}
+            <span class="typing" id="loading-${questionKey}" style="display:none">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="response-options">
+        <div class="response-container">
+          ${buildResponseOptions(data, questionKey)}
+        </div>
+      </div>
+    `;
+    return item;
+  }
+
+  function buildResponseOptions(data, questionKey) {
+    // Don't show response options for completion messages
+      if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+        return `
+          <div class="summary-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+          </div>
+        `;
+      }
+
+    switch (data.question_type) {
+      case 'yes_no':
+        return `
+          <div class="opts">
+            <button class="yes-no-btn yes-btn" onclick="selectAnswer('${questionKey}', 'yes', this)">✓ Yes</button>
+            <button class="yes-no-btn no-btn" onclick="selectAnswer('${questionKey}', 'no', this)">✗ No</button>
+            <button class="yes-no-btn not-sure-btn" onclick="selectAnswer('${questionKey}', 'not_sure', this)">? Not Sure</button>
+          </div>
+        `;
+      case 'multiple_choice':
+        const isMultiselect = data.multiselect === true || data.allow_multiple === true;
+        return `
+          <div class="opts ${isMultiselect ? 'multiselect' : ''}">
+            ${(data.options || []).map(option => `
+              <button class="opt ${isMultiselect ? 'multiselect' : ''}" 
+                onclick="selectAnswer('${questionKey}', '${escapeAttr(option)}', this, ${isMultiselect})"
+                data-value="${escapeAttr(option)}">${escapeHTML(option)}</button>
+            `).join('')}
+          </div>
+          ${isMultiselect ? `
+            <div class="submit-container">
+              <button class="action-btn primary" onclick="submitMultiselect('${questionKey}')">Submit Selection</button>
+            </div>
+          ` : ''}
+        `;
+      case 'scale_1_10':
+        return `
+          <div class="scale-container">
+            <div class="scale-labels">
+              <span class="scale-label-left">${data.scale_labels?.['1'] || '1'}</span>
+              <span class="scale-label-right">${data.scale_labels?.['10'] || '10'}</span>
+            </div>
+            <div class="opts">
+              ${Array.from({length:10},(_,i)=>i+1).map(n=>`
+                <button class="scale-btn" onclick="selectAnswer('${questionKey}', '${n}', this)">${n}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      case 'text':
+        return `
+          <div class="text-input-container" style="position: relative;">
+            <input type="text" class="text-input" 
+              placeholder="${escapeAttr(data.placeholder || 'Type your answer...')}"
+              onkeypress="if(event.key === 'Enter') { event.preventDefault(); submitTextAnswer('${questionKey}', this.nextElementSibling); }"
+              autofocus>
+            <button class="text-submit-btn" onclick="submitTextAnswer('${questionKey}', this)" title="Send">➤</button>
+          </div>
+        `;
+      default:
+        return `
+          <div class="opts">
+            <button class="opt" onclick="selectAnswer('${questionKey}', 'continue', this)">Continue</button>
+          </div>
+        `;
+    }
+  }
+
+  // Answer handlers
+  function selectAnswer(questionKey, answer, buttonEl, isMultiselect = false) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    
+    if (isMultiselect) {
+      buttonEl.classList.toggle('sel');
+    } else {
+      container.querySelectorAll('.opt, .yes-no-btn, .scale-btn').forEach(btn => btn.classList.remove('sel', 'selected'));
+      if (buttonEl) buttonEl.classList.add('sel', 'selected');
+      submitAnswerToBackend(questionKey, answer);
+    }
+  }
+
+  function submitMultiselect(questionKey) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    
+    const selectedOptions = Array.from(container.querySelectorAll('.opt.multiselect.sel'))
+      .map(btn => btn.dataset.value);
+    
+    if (selectedOptions.length === 0) {
+      alert('Please select at least one option');
+      return;
+    }
+    
+    submitAnswerToBackend(questionKey, selectedOptions);
+  }
+
+  function submitTextAnswer(questionKey, buttonEl) {
+    const container = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+    if (!container) return;
+    const textInput = container.querySelector('.text-input');
+    if (!textInput) return;
+    const answer = textInput.value.trim();
+    if (!answer) {
+      textInput.focus();
+      return;
+    }
+    buttonEl?.classList.add('selected');
+    textInput.disabled = true;
+    buttonEl.disabled = true;
+    submitAnswerToBackend(questionKey, answer);
+  }
+
+  async function submitAnswerToBackend(questionKey, answer) {
+    // Don't submit if we're already in completion state
+    if (state.isComplete) return;
+
+    state.answers[questionKey] = answer;
+    
+    // Save progress to sessionStorage
+    sessionStorage.setItem(`intake_progress_${state.selectedPatientId}`, JSON.stringify({
+      answers: state.answers,
+      questionsAnswered: state.questionsAnswered,
+      questions: state.questions,
+      isComplete: state.isComplete
+    }));
+    
+    showLoadingIndicator(questionKey);
+    try {
+      const data = await api.submit(state.selectedPatientId, answer, questionKey);
+      hideLoadingIndicator(questionKey);
+      const currentCard = document.querySelector(`[data-question-key="${CSS.escape(questionKey)}"]`);
+      currentCard?.classList.add('answered');
+      
+      // Check if this is a completion message
+      if (data.type === 'complete' || data.question === 'Medical record review complete!') {
+        state.isComplete = true;
+        // Update saved progress with completion status
+        sessionStorage.setItem(`intake_progress_${state.selectedPatientId}`, JSON.stringify({
+          answers: state.answers,
+          questionsAnswered: state.questionsAnswered,
+          questions: state.questions,
+          isComplete: true
+        }));
+        // Remove any existing completion messages
+        document.querySelectorAll('[data-question-key]').forEach(card => {
+          if (card.textContent.includes('Medical record review complete!')) {
+            card.remove();
+          }
+        });
+      }
+      
+      if (data) displayQuestion(data);
+    } catch (e) {
+      console.error('Error submitting answer:', e);
+      hideLoadingIndicator(questionKey);
+      alert('Error submitting answer. Try again.');
+    }
+  }
+
+
+  // Summary
+  function displaySummary(summary) {
+    const card = document.createElement('div');
+    card.className = 'summary-card fadein';
+    card.innerHTML = `
+      <h3>📋 Medical Record Review Complete!</h3>
+      <div class="summary-actions">
+        <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+      </div>
+    `;
+    els.stream.appendChild(card);
+    scrollToBottom();
+  }
+
+  // Loading indicator
+  function showLoadingIndicator(questionKey) {
+    if (questionKey) {
+      const el = document.getElementById('loading-' + questionKey);
+      if (el) el.style.display = 'inline-flex';
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'minimal-loading';
+    el.id = 'loading-indicator';
+    el.innerHTML = `<div class="minimal-spinner"></div><span>Processing...</span>`;
+    els.stream.appendChild(el);
+    scrollToBottom();
+  }
+  function hideLoadingIndicator(questionKey) {
+    if (questionKey) {
+      const el = document.getElementById('loading-' + questionKey);
+      if (el) el.style.display = 'none';
+      return;
+    }
+    document.getElementById('loading-indicator')?.remove();
+  }
+
+  // Download summary
+  function downloadSummary() {
+    const text = document.querySelector('.summary-content pre')?.textContent;
+    if (!text) return;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `intake_summary_${state.selectedPatientId}_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function saveAnswers() {
+    const button = document.querySelector('.action-btn.secondary');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+    
+    try {
+      // Call API to save answers
+      await api.submit(state.selectedPatientId, 'save', 'save_answers');
+      
+      if (button) {
+        button.textContent = 'Saved ✓';
+        setTimeout(() => {
+          button.textContent = 'Save';
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (e) {
+      console.error('Error saving answers:', e);
+      if (button) {
+        button.textContent = 'Save';
+        button.disabled = false;
+      }
+      alert('Error saving answers. Please try again.');
+    }
+  }
+
+  async function saveAndNext() {
+    const button = document.querySelector('.action-btn.primary');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+
+    try {
+      // Save answers first
+      await api.submit(state.selectedPatientId, 'save', 'save_answers');
+      
+      // Replace the Save & Next button with Continue button
+      const lastQuestion = els.stream.lastElementChild;
+      if (lastQuestion) {
+        const responseContainer = lastQuestion.querySelector('.response-container');
+        if (responseContainer) {
+          responseContainer.innerHTML = `
+            <div class="summary-actions" style="display: flex; justify-content: flex-end;">
+              <button class="action-btn primary" onclick="proceedToVisitPrep()">Continue to Visit Preparation →</button>
+            </div>
+          `;
+        }
+      }
+    } catch (e) {
+      console.error('Error saving answers:', e);
+      if (button) {
+        button.textContent = 'Save & Next →';
+        button.disabled = false;
+      }
+      alert('Error saving answers. Please try again.');
+    }
+  }
+
+  function proceedToVisitPrep() {
+    window.location.href = `/visit_prep.html?patient_id=${state.selectedPatientId}`;
+  }
+
+  // Utils
+  function scrollToBottom() { setTimeout(() => { els.stream.scrollTop = els.stream.scrollHeight; }, 50); }
+  function escapeHTML(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
+  function escapeAttr(s) { return escapeHTML(String(s)).replaceAll('"','&quot;'); }
+  </script>
+</body>
+</html>

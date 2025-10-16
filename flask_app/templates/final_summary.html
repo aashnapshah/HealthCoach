@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>HealthCoach - Final Summary</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <style>
+    /* Minimal styles for role + layout, works alongside styles.css */
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    .app { max-width: 1024px; margin: 0 auto; padding: 16px; }
+    .header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; opacity: 0.8; }
+    .hide { display: none !important; }
+
+    .back-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .back-btn:hover { background: #f7f7f7; }
+
+    .summary-container { margin-top: 24px; }
+    .summary-card { border: 1px solid #e5e5e5; border-radius: 12px; background: #fff; padding: 20px; margin-bottom: 20px; }
+    .summary-content { margin: 20px 0; }
+    .summary-content pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
+    
+    .comment-section { margin-top: 24px; }
+    .comment-textarea { 
+      width: 100%; 
+      min-height: 120px; 
+      padding: 12px; 
+      border-radius: 8px; 
+      border: 1px solid #ddd; 
+      resize: vertical; 
+      font-family: inherit;
+      margin-bottom: 16px;
+    }
+    
+    .action-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+    .action-btn:hover { background: #f5f5f5; }
+    .action-btn.primary { background: #0b5; color: #fff; border-color: #0a4; }
+    .action-btn.primary:hover { background: #0a4; }
+    
+    .minimal-loading { display: inline-flex; align-items: center; gap: 8px; opacity: 0.8; }
+    .minimal-spinner { width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #555; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="logo-small">👨‍⚕️</div>
+        <div>
+          <div class="title">HealthCoach</div>
+          <div class="subtitle" id="header-subtitle">Final Summary</div>
+        </div>
+      </div>
+      <button class="back-btn" id="back-btn" onclick="goBack()">← Back</button>
+    </div>
+
+    <div id="summary-container" class="summary-container">
+      <div id="loading" class="minimal-loading">
+        <div class="minimal-spinner"></div>
+        <span>Generating summary...</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Application state
+  const state = {
+    selectedPatientId: null
+  };
+
+  // DOM elements
+  const els = {
+    summaryContainer: document.getElementById('summary-container'),
+    loading: document.getElementById('loading'),
+    headerSubtitle: document.getElementById('header-subtitle')
+  };
+
+  // API helpers
+  const api = {
+    async getJSON(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('Request failed: ' + res.status);
+      return res.json();
+    },
+    generateFinalSummary(patientId) {
+      return this.getJSON('/generate_final_summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId })
+      });
+    },
+    saveComment(patientId, comment) {
+      return this.getJSON('/save_comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: patientId, comment })
+      });
+    }
+  };
+
+  // Init
+  document.addEventListener('DOMContentLoaded', init);
+  async function init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patient_id');
+    
+    if (!patientId) {
+      alert('No patient selected. Redirecting...');
+      window.location.href = '/';
+      return;
+    }
+
+    state.selectedPatientId = patientId;
+    
+    try {
+      const data = await api.generateFinalSummary(patientId);
+      displaySummary(data.summary);
+    } catch (e) {
+      console.error('Error generating summary:', e);
+      // Get the stored answers as fallback
+      const storedAnswers = sessionStorage.getItem('visitPrepAnswers');
+      if (storedAnswers) {
+        const answers = JSON.parse(storedAnswers);
+        const fallbackSummary = formatAnswersAsSummary(answers);
+        displaySummary(fallbackSummary);
+      } else {
+        alert('Error: Could not generate summary or retrieve answers.');
+      }
+    }
+  }
+
+  function displaySummary(summary) {
+    els.loading.remove();
+    
+    const summaryCard = document.createElement('div');
+    summaryCard.className = 'summary-card';
+    summaryCard.innerHTML = `
+      <h2>📋 Final Summary</h2>
+      <div class="summary-content">
+        <pre>${escapeHTML(summary || 'No summary available')}</pre>
+      </div>
+    `;
+    
+    const commentSection = document.createElement('div');
+    commentSection.className = 'comment-section';
+    commentSection.innerHTML = `
+      <h3>Comments</h3>
+      <textarea 
+        class="comment-textarea" 
+        id="comment-textarea" 
+        placeholder="Add your comments here..."></textarea>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="action-btn" onclick="downloadSummary()">💾 Download Summary</button>
+        <button class="action-btn primary" onclick="saveComment()">Save Comment</button>
+      </div>
+    `;
+    
+    els.summaryContainer.appendChild(summaryCard);
+    els.summaryContainer.appendChild(commentSection);
+  }
+
+  async function saveComment() {
+    const textarea = document.getElementById('comment-textarea');
+    const comment = textarea.value.trim();
+    
+    if (!comment) {
+      alert('Please enter a comment before saving.');
+      return;
+    }
+    
+    const button = document.querySelector('.action-btn.primary');
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    
+    try {
+      await api.saveComment(state.selectedPatientId, comment);
+      button.textContent = 'Saved ✓';
+      setTimeout(() => {
+        button.textContent = 'Save Comment';
+        button.disabled = false;
+      }, 2000);
+    } catch (e) {
+      console.error('Error saving comment:', e);
+      alert('Error saving comment. Please try again.');
+      button.textContent = 'Save Comment';
+      button.disabled = false;
+    }
+  }
+
+  function downloadSummary() {
+    const summaryText = document.querySelector('.summary-content pre')?.textContent;
+    const commentText = document.getElementById('comment-textarea')?.value;
+    if (!summaryText) return;
+    
+    let downloadText = summaryText;
+    if (commentText?.trim()) {
+      downloadText += '\n\n--- Comments ---\n' + commentText;
+    }
+    
+    const blob = new Blob([downloadText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `final_summary_${state.selectedPatientId}_${new Date().toISOString().slice(0,10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function goBack() {
+    window.location.href = `/visit_prep.html?patient_id=${state.selectedPatientId}`;
+  }
+
+  // Format answers as a readable summary
+  function formatAnswersAsSummary(answers) {
+    let summary = 'Visit Preparation Answers:\n\n';
+    
+    // Sort answers by question key to maintain order
+    const sortedAnswers = Object.entries(answers)
+      .sort(([keyA], [keyB]) => {
+        // Extract numbers from keys (e.g., "q_1" -> 1)
+        const numA = parseInt(keyA.match(/\d+/)?.[0] || '0');
+        const numB = parseInt(keyB.match(/\d+/)?.[0] || '0');
+        return numA - numB;
+      });
+
+    for (const [key, value] of sortedAnswers) {
+      if (Array.isArray(value)) {
+        summary += `Question ${key}:\n`;
+        summary += value.map(v => `- ${v}`).join('\n');
+        summary += '\n\n';
+      } else {
+        summary += `Question ${key}: ${value}\n\n`;
+      }
+    }
+
+    return summary;
+  }
+
+  // Utils
+  function escapeHTML(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
+  </script>
+</body>
+</html>
